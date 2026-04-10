@@ -614,7 +614,7 @@ if __name__ == "__main__":
     parser.add_argument("--n",       type=int,   default=100000,         help="Strategies to generate")
     parser.add_argument("--top",     type=int,   default=100,          help="Top N to validate")
     parser.add_argument("--workers", type=int,   default=4,           help="Parallel workers")
-    parser.add_argument("--out",     default="strategy_results_60m_top100_lookback_commission_standard_new_data_btcusdt.csv",  help="Output CSV path")
+    parser.add_argument("--out",     default=r"C:\Users\vaibh\OneDrive\Desktop\multi_strategy_generator\results\strategy_results_60m_top100_lookback_commission_standard_new_data_btcusdt.csv",  help="Output CSV path")
     parser.add_argument("--seed",    type=int,   default=314,          help="Random seed")
     args = parser.parse_args()
 
