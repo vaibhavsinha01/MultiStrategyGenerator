@@ -1,0 +1,3 @@
+id,direction,signals,n_signals,tp,sl,train_return,train_sharpe,train_drawdown,train_trades,train_winrate,score,test_return,test_sharpe,test_drawdown,test_trades,test_winrate,test_score
+6f6e68c2,bear,s23|s31|s29|s19|s13|s28,6,0.057715705,0.0144941124,4.226,0.0,-8.8964,13,30.7692,0.021456,8.5614,0.0,-1.8481,7,42.8571,0.022018
+5e0f4aa9,bear,s28|s13|s23|s37|s31|s29,6,0.0528513154,0.0130457184,5.4769,0.0,-6.6371,12,33.3333,0.024479,0.9564,0.0,-5.0203,7,28.5714,0.010427
