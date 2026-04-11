@@ -17,28 +17,6 @@ import random
 import uuid
 from signals import SIGNALS, BULL_SIGNALS, BEAR_SIGNALS, NEUTRAL_SIGNALS
 
-
-# ── High-signal-quality pools ──────────────────────────────────────────────────
-# Manually curated subsets that are most alpha-relevant for crypto 15m data.
-# Generator draws preferentially from these (80% of picks) before falling
-# back to the full pool.
-
-# QUALITY_BULL = [
-#     "s1","s3","s5","s7","s9","s13","s15","s17","s19",
-#     "s21","s23","s25","s27","s29","s31","s33","s35",
-#     "s41","s43","s45","s49","s51","s55","s62","s66",
-#     "s73","s75","s78","s82","s84","s86","s89","s93",
-#     "s95","s98","s100",
-# ]
-# QUALITY_BEAR = [
-#     "s2","s4","s6","s8","s10","s14","s16","s18","s20",
-#     "s22","s24","s26","s28","s30","s32","s34","s36",
-#     "s42","s44","s46","s50","s52","s56","s63","s67",
-#     "s74","s76","s79","s83","s85","s87","s90","s94",
-#     "s99",
-# ]
-# QUALITY_NEUTRAL = ["s71","s72","s77","s88"]
-
 VALID_SIGNALS = set(SIGNALS.keys())
 
 QUALITY_BULL = [s for s in BULL_SIGNALS if s in VALID_SIGNALS]
@@ -78,7 +56,7 @@ def generate_one(direction: str | None = None, max_attempts: int = 200) -> dict 
     if direction is None:
         direction = random.choice(["bull", "bear"])
 
-    n_signals = random.choices([3, 4, 5, 6, 7], weights=[0.20, 0.30, 0.25, 0.15, 0.10])[0] # initial params are 2,3 and 0.45,0.55
+    n_signals = random.choices([2, 3, 4, 5], weights=[0.20, 0.45, 0.20, 0.15])[0] # initial params are 2,3 and 0.45,0.55
 
     for _ in range(max_attempts):
         # 80% quality pool, 20% full pool

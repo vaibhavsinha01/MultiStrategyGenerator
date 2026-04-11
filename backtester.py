@@ -119,9 +119,10 @@ def run_backtest(
             df[f"signal_{k}"] = sig.fillna(False).astype(bool)
 
         if debug:
-            print(f"\n🔍 Strategy {strat_dict['id']}")
-            for k in strat_dict["signals"]:
-                print(f"{k}: {df[f'signal_{k}'].sum()} signals")
+            pass
+            # print(f"\n🔍 Strategy {strat_dict['id']}")
+            # for k in strat_dict["signals"]:
+            #     print(f"{k}: {df[f'signal_{k}'].sum()} signals")
 
         # ── 2. PREP DATA ──────────────────────────────────
         ohlcv = _prep_df(df)
@@ -159,10 +160,11 @@ def run_backtest(
             return None
 
         if debug:
-            print(f"Trades: {n_trades}")
-            print(f"Return: {return_pct}")
-            print(f"DD: {max_dd}")
-            print(f"WinRate: {win_rate}")
+            pass
+            # print(f"Trades: {n_trades}")
+            # print(f"Return: {return_pct}")
+            # print(f"DD: {max_dd}")
+            # print(f"WinRate: {win_rate}")
 
         return {
             "return_pct":   round(return_pct, 4),

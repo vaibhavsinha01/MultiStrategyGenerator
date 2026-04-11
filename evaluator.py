@@ -52,7 +52,6 @@ def score_strategy(metrics: dict) -> float:
     base = 0.40*r - 0.30*dd + 0.30*wr
     return round(base * trade_confidence, 6)
 
-
 # ── 3. Rank ───────────────────────────────────────────────────────────────────
 
 def rank_strategies(results: list[dict], top_n: int = 50) -> list[dict]:
