@@ -514,6 +514,149 @@ def s77(df: pd.DataFrame) -> pd.Series:
     Broad bear regime filter; stays True for whole negative phase. Direction: BEAR"""
     return df["rmi_negative"].astype(bool)
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  FAIR VALUE GAP SIGNALS  (s78 – s82)
+#  Columns: fvg_bull, fvg_bear, fvg_in_bull, fvg_in_bear
+# ══════════════════════════════════════════════════════════════════════════════
+
+def s78(df: pd.DataFrame) -> pd.Series:
+    """FVG bullish gap detected — low > high[2] with close[1] confirmation.
+    Fires on the bar the bull FVG is created; acts as momentum confirmation. Direction: BULL"""
+    return df["fvg_bull"].astype(bool)
+
+def s79(df: pd.DataFrame) -> pd.Series:
+    """Price inside unmitigated bull FVG — close within active bull gap zone.
+    Mean-reversion long setup: price pulled back into unfilled demand. Direction: BULL"""
+    return df["fvg_in_bull"].astype(bool)
+
+def s80(df: pd.DataFrame) -> pd.Series:
+    """FVG bearish gap detected — high < low[2] with close[1] confirmation.
+    Fires on the bar the bear FVG is created; acts as bearish momentum confirmation. Direction: BEAR"""
+    return df["fvg_bear"].astype(bool)
+
+def s81(df: pd.DataFrame) -> pd.Series:
+    """Price inside unmitigated bear FVG — close within active bear gap zone.
+    Mean-reversion short setup: price pulled back into unfilled supply. Direction: BEAR"""
+    return df["fvg_in_bear"].astype(bool)
+
+def s82(df: pd.DataFrame) -> pd.Series:
+    """No active bear FVG overhead — price not inside any bear supply zone.
+    Used as a bull confirmation guard: no unfilled supply above price. Direction: BULL"""
+    return (df["fvg_in_bear"] == 0).astype(bool)
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  LIQUIDITY SWEEPS SIGNALS  (s83 – s86)
+#  Columns: lsw_bull_sweep, lsw_bear_sweep, lsw_bull_outbreak, lsw_bear_outbreak
+# ══════════════════════════════════════════════════════════════════════════════
+
+def s83(df: pd.DataFrame) -> pd.Series:
+    """Liquidity bull sweep — wick pierced below pivot low, closed above.
+    Classic stop-hunt reversal: shorts squeezed, strong long setup. Direction: BULL"""
+    return df["lsw_bull_sweep"].astype(bool)
+
+def s84(df: pd.DataFrame) -> pd.Series:
+    """Liquidity bull outbreak — close broke above unmitigated pivot high.
+    Breakout of resistance with prior liquidity context. Direction: BULL"""
+    return df["lsw_bull_outbreak"].astype(bool)
+
+def s85(df: pd.DataFrame) -> pd.Series:
+    """Liquidity bear sweep — wick pierced above pivot high, closed below.
+    Classic stop-hunt reversal: longs squeezed, strong short setup. Direction: BEAR"""
+    return df["lsw_bear_sweep"].astype(bool)
+
+def s86(df: pd.DataFrame) -> pd.Series:
+    """Liquidity bear outbreak — close broke below unmitigated pivot low.
+    Breakdown of support with prior liquidity context. Direction: BEAR"""
+    return df["lsw_bear_outbreak"].astype(bool)
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  ORDER BLOCK SIGNALS  (s87 – s91)
+#  Columns: ob_bull_created, ob_bear_created, ob_in_bull, ob_in_bear
+# ══════════════════════════════════════════════════════════════════════════════
+
+def s87(df: pd.DataFrame) -> pd.Series:
+    """OB bullish block created — high-momentum bearish move identified a demand zone.
+    Fires on creation bar; use to anticipate future pullback entries. Direction: BULL"""
+    return df["ob_bull_created"].astype(bool)
+
+def s88(df: pd.DataFrame) -> pd.Series:
+    """Price touching bullish OB — low dipped into an active demand zone.
+    Pine buy alert equivalent: price returned to unfilled institutional demand. Direction: BULL"""
+    return df["ob_in_bull"].astype(bool)
+
+def s89(df: pd.DataFrame) -> pd.Series:
+    """OB bearish block created — high-momentum bullish move identified a supply zone.
+    Fires on creation bar; use to anticipate future pullback short entries. Direction: BEAR"""
+    return df["ob_bear_created"].astype(bool)
+
+def s90(df: pd.DataFrame) -> pd.Series:
+    """Price touching bearish OB — high poked into an active supply zone.
+    Pine sell alert equivalent: price returned to unfilled institutional supply. Direction: BEAR"""
+    return df["ob_in_bear"].astype(bool)
+
+def s91(df: pd.DataFrame) -> pd.Series:
+    """No active bearish OB overhead — no supply zone blocking upside.
+    Guard signal: confirms clean price action above for bull entries. Direction: BULL"""
+    return (df["ob_in_bear"] == 0).astype(bool)
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  SMART MONEY CONCEPTS SIGNALS  (s92 – s101)
+#  Columns: smc_sw_bull_bos, smc_sw_bull_choch, smc_sw_bear_bos,
+#           smc_sw_bear_choch, smc_sw_is_bull, smc_sw_is_bear,
+#           smc_int_bull_bos, smc_int_bull_choch, smc_int_bear_bos,
+#           smc_int_bear_choch, smc_int_is_bull, smc_int_is_bear,
+#           smc_eq_high, smc_eq_low
+# ══════════════════════════════════════════════════════════════════════════════
+
+def s92(df: pd.DataFrame) -> pd.Series:
+    """SMC swing bullish BOS — close broke above tracked swing high (trend continuation).
+    Confirms the existing uptrend is intact at the swing structure level. Direction: BULL"""
+    return df["smc_sw_bull_bos"].astype(bool)
+
+def s93(df: pd.DataFrame) -> pd.Series:
+    """SMC swing bullish CHoCH — close broke above swing high reversing a downtrend.
+    High-conviction reversal signal at the macro swing level. Direction: BULL"""
+    return df["smc_sw_bull_choch"].astype(bool)
+
+def s94(df: pd.DataFrame) -> pd.Series:
+    """SMC swing bull regime — swing structure trend is bullish (HH/HL sequence active).
+    Broad macro trend filter; stays True for whole bull phase. Direction: BULL"""
+    return df["smc_sw_is_bull"].astype(bool)
+
+def s95(df: pd.DataFrame) -> pd.Series:
+    """SMC internal bullish CHoCH — internal structure reversed upward.
+    Earlier reversal signal than swing CHoCH; fires at micro structure level. Direction: BULL"""
+    return df["smc_int_bull_choch"].astype(bool)
+
+def s96(df: pd.DataFrame) -> pd.Series:
+    """SMC internal bull regime — internal structure trend is bullish.
+    Faster-moving regime filter; good for 15m entries within a bull swing. Direction: BULL"""
+    return df["smc_int_is_bull"].astype(bool)
+
+def s97(df: pd.DataFrame) -> pd.Series:
+    """SMC swing bearish BOS — close broke below tracked swing low (bear continuation).
+    Confirms existing downtrend at the swing structure level. Direction: BEAR"""
+    return df["smc_sw_bear_bos"].astype(bool)
+
+def s98(df: pd.DataFrame) -> pd.Series:
+    """SMC swing bearish CHoCH — close broke below swing low reversing an uptrend.
+    High-conviction macro reversal to the downside. Direction: BEAR"""
+    return df["smc_sw_bear_choch"].astype(bool)
+
+def s99(df: pd.DataFrame) -> pd.Series:
+    """SMC swing bear regime — swing structure trend is bearish (LL/LH sequence active).
+    Broad macro bear filter. Direction: BEAR"""
+    return df["smc_sw_is_bear"].astype(bool)
+
+def s100(df: pd.DataFrame) -> pd.Series:
+    """SMC internal bearish CHoCH — internal structure reversed downward.
+    Earlier short signal than swing CHoCH. Direction: BEAR"""
+    return df["smc_int_bear_choch"].astype(bool)
+
+def s101(df: pd.DataFrame) -> pd.Series:
+    """SMC internal bear regime — internal structure trend is bearish.
+    Faster bear filter for short entries within a bear swing. Direction: BEAR"""
+    return df["smc_int_is_bear"].astype(bool)
 
 # ── validation helper ──────────────────────────────────────────────────────────
 
@@ -612,6 +755,30 @@ SIGNAL_REGISTRY: dict[str, dict] = {
     "s75": {"fn": s75, "desc": "RMI RSI_MFI > pmom",      "group": "rmi"},
     "s76": {"fn": s76, "desc": "RMI sell signal",         "group": "rmi"},
     "s77": {"fn": s77, "desc": "RMI negative regime",     "group": "rmi"},
+    "s78": {"fn": s78, "desc": "FVG bull detected",         "group": "fvg"},
+    "s79": {"fn": s79, "desc": "Price in bull FVG zone",    "group": "fvg"},
+    "s80": {"fn": s80, "desc": "FVG bear detected",         "group": "fvg"},
+    "s81": {"fn": s81, "desc": "Price in bear FVG zone",    "group": "fvg"},
+    "s82": {"fn": s82, "desc": "No active bear FVG above",  "group": "fvg"},
+    "s83": {"fn": s83, "desc": "LSW bull sweep",            "group": "liquidity"},
+    "s84": {"fn": s84, "desc": "LSW bull outbreak",         "group": "liquidity"},
+    "s85": {"fn": s85, "desc": "LSW bear sweep",            "group": "liquidity"},
+    "s86": {"fn": s86, "desc": "LSW bear outbreak",         "group": "liquidity"},
+    "s87": {"fn": s87, "desc": "OB bull zone created",      "group": "orderblock"},
+    "s88": {"fn": s88, "desc": "Price in bull OB",          "group": "orderblock"},
+    "s89": {"fn": s89, "desc": "OB bear zone created",      "group": "orderblock"},
+    "s90": {"fn": s90, "desc": "Price in bear OB",          "group": "orderblock"},
+    "s91": {"fn": s91, "desc": "No bear OB overhead",       "group": "orderblock"},
+    "s92":  {"fn": s92,  "desc": "SMC swing bull BOS",       "group": "smc_swing"},
+    "s93":  {"fn": s93,  "desc": "SMC swing bull CHoCH",     "group": "smc_swing"},
+    "s94":  {"fn": s94,  "desc": "SMC swing bull regime",    "group": "smc_swing"},
+    "s95":  {"fn": s95,  "desc": "SMC internal bull CHoCH",  "group": "smc_internal"},
+    "s96":  {"fn": s96,  "desc": "SMC internal bull regime", "group": "smc_internal"},
+    "s97":  {"fn": s97,  "desc": "SMC swing bear BOS",       "group": "smc_swing"},
+    "s98":  {"fn": s98,  "desc": "SMC swing bear CHoCH",     "group": "smc_swing"},
+    "s99":  {"fn": s99,  "desc": "SMC swing bear regime",    "group": "smc_swing"},
+    "s100": {"fn": s100, "desc": "SMC internal bear CHoCH",  "group": "smc_internal"},
+    "s101": {"fn": s101, "desc": "SMC internal bear regime", "group": "smc_internal"},
 }
 
 # ── derived signal groups ─────────────────────────────────────────────
@@ -629,7 +796,9 @@ BULL_SIGNALS = [
     "s46",  # any bull regime
     "s47",  # bull flip (entry trigger)
     "s48",  # momentum / blue zone (confirmation)
-    "s53","s54","s55","s58","s59","s60","s63","s64","s65","s68","s69","s70","s73","s74","s75"
+    "s53","s54","s55","s58","s59","s60","s63","s64","s65","s68","s69",
+    "s70","s73","s74","s75","s78","s79","s82","s83","s84","s87","s88","s91",
+    "s92","s93","s94","s95","s96"
 ]
 
 BEAR_SIGNALS = [
@@ -641,7 +810,9 @@ BEAR_SIGNALS = [
     "s50",  # any bear regime
     "s51",  # bear flip (entry trigger)
     "s52",  # not-bearish guard (permissive bear filter)
-    "s56","s57","s61","s62","s66","s67","s71","s72","s76","s77"
+    "s56","s57","s61","s62","s66","s67","s71","s72","s76",
+    "s77","s80","s81","s85","s86","s89","s90",
+    "s97","s98","s99", "s100","s101"
 ]
 
 NEUTRAL_SIGNALS = [

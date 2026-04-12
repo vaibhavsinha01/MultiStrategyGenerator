@@ -566,6 +566,565 @@ def rmi_trend_sniper(df: pd.DataFrame, length: int = 14, pmom: int = 66, nmom: i
 
     return df
 
+def fair_value_gap(df: pd.DataFrame, threshold_pct: float = 0.0) -> pd.DataFrame:
+    """
+    Fair Value Gap — port of LuxAlgo's Pine v5 script.
+
+    Pine logic:
+      threshold = thresholdPer / 100
+
+      bull_fvg = low > high[2]               ← gap between current low and 2-bar-ago high
+                 and close[1] > high[2]       ← middle bar closed above the gap bottom
+                 and (low - high[2]) / high[2] > threshold
+
+      bear_fvg = high < low[2]               ← gap between current high and 2-bar-ago low
+                 and close[1] < low[2]        ← middle bar closed below the gap top
+                 and (low[2] - high) / high > threshold
+
+      Mitigation:
+        bull FVG mitigated when close < fvg_min  (price fills back into the gap)
+        bear FVG mitigated when close > fvg_max
+    """
+    high  = df["high"]
+    low   = df["low"]
+    close = df["close"]
+
+    thresh = threshold_pct / 100.0
+
+    # Raw FVG detection
+    bull_fvg = (
+        (low  > high.shift(2)) &
+        (close.shift(1) > high.shift(2)) &
+        ((low - high.shift(2)) / high.shift(2) > thresh)
+    )
+    bear_fvg = (
+        (high < low.shift(2)) &
+        (close.shift(1) < low.shift(2)) &
+        ((low.shift(2) - high) / high > thresh)
+    )
+
+    # For each bar, track whether price is currently INSIDE an unmitigated FVG
+    # Bull FVG zone: between high[2] (bottom) and low (top) at detection bar
+    # Bear FVG zone: between high (bottom) and low[2] (top) at detection bar
+    n = len(df)
+    bull_fvg_v   = bull_fvg.values
+    bear_fvg_v   = bear_fvg.values
+    high_v       = high.values
+    low_v        = low.values
+    close_v      = close.values
+
+    # Output columns
+    in_bull_fvg   = np.zeros(n, dtype=int)   # price currently inside an active bull FVG
+    in_bear_fvg   = np.zeros(n, dtype=int)   # price currently inside an active bear FVG
+    bull_fvg_top  = np.full(n, np.nan)       # top of most recent unmitigated bull FVG
+    bull_fvg_bot  = np.full(n, np.nan)       # bottom of most recent unmitigated bull FVG
+    bear_fvg_top  = np.full(n, np.nan)
+    bear_fvg_bot  = np.full(n, np.nan)
+
+    # Active FVG tracking lists  [(top, bot), ...]
+    active_bull = []
+    active_bear = []
+
+    for i in range(2, n):
+        # Register new FVGs
+        if bull_fvg_v[i]:
+            top = low_v[i]
+            bot = high_v[i - 2]
+            active_bull.append((top, bot))
+
+        if bear_fvg_v[i]:
+            top = low_v[i - 2]
+            bot = high_v[i]
+            active_bear.append((top, bot))
+
+        # Mitigate bull FVGs where close fell back below fvg bottom
+        active_bull = [(t, b) for (t, b) in active_bull if close_v[i] >= b]
+        # Mitigate bear FVGs where close rose back above fvg top
+        active_bear = [(t, b) for (t, b) in active_bear if close_v[i] <= t]
+
+        # Is price currently inside any active bull FVG?
+        for (t, b) in active_bull:
+            if b <= close_v[i] <= t:
+                in_bull_fvg[i] = 1
+                bull_fvg_top[i] = t
+                bull_fvg_bot[i] = b
+                break
+
+        for (t, b) in active_bear:
+            if b <= close_v[i] <= t:
+                in_bear_fvg[i] = 1
+                bear_fvg_top[i] = t
+                bear_fvg_bot[i] = b
+                break
+
+    idx = df.index
+    df["fvg_bull"]          = bull_fvg.astype(int)                    # detection bar
+    df["fvg_bear"]          = bear_fvg.astype(int)                    # detection bar
+    df["fvg_in_bull"]       = pd.Series(in_bull_fvg,  index=idx)     # price inside bull FVG
+    df["fvg_in_bear"]       = pd.Series(in_bear_fvg,  index=idx)     # price inside bear FVG
+    df["fvg_bull_top"]      = pd.Series(bull_fvg_top, index=idx)
+    df["fvg_bull_bot"]      = pd.Series(bull_fvg_bot, index=idx)
+    df["fvg_bear_top"]      = pd.Series(bear_fvg_top, index=idx)
+    df["fvg_bear_bot"]      = pd.Series(bear_fvg_bot, index=idx)
+
+    return df
+
+
+def liquidity_sweeps(df: pd.DataFrame, length: int = 5) -> pd.DataFrame:
+    """
+    Liquidity Sweeps — port of LuxAlgo's Pine v5 script.
+
+    Pine logic:
+      Pivot highs/lows detected over `length` bars each side.
+
+      For a pivot HIGH:
+        wick sweep   = high > pivot_high and close < pivot_high  (wick poked above, closed below)
+        outbreak     = close > pivot_high                         (closed above — broke the level)
+        retest (tak) = after outbreak: high > pivot and close < pivot  (pulled back through)
+
+      For a pivot LOW:
+        wick sweep   = low < pivot_low and close > pivot_low
+        outbreak     = close < pivot_low
+        retest (tak) = after outbreak: low < pivot and close > pivot
+
+      We expose:
+        Bull sweep = pivot LOW was wick-swept (liquidity taken below, bullish reversal setup)
+        Bear sweep = pivot HIGH was wick-swept (liquidity taken above, bearish reversal setup)
+        Bull outbreak = close broke above pivot HIGH (bullish breakout confirmed)
+        Bear outbreak = close broke below pivot LOW  (bearish breakdown confirmed)
+    """
+    high  = df["high"].values
+    low   = df["low"].values
+    close = df["close"].values
+    n     = len(close)
+
+    bull_sweep_out    = np.zeros(n, dtype=int)   # wick below pivot low → bull reversal
+    bear_sweep_out    = np.zeros(n, dtype=int)   # wick above pivot high → bear reversal
+    bull_outbreak_out = np.zeros(n, dtype=int)   # close broke above pivot high
+    bear_outbreak_out = np.zeros(n, dtype=int)   # close broke below pivot low
+    near_pivot_high   = np.zeros(n, dtype=int)   # price near unbroken pivot high (resistance)
+    near_pivot_low    = np.zeros(n, dtype=int)   # price near unbroken pivot low  (support)
+
+    # Active pivot trackers: list of (price, bar_index, broken)
+    active_highs = []
+    active_lows  = []
+
+    for i in range(length, n - length):
+        # Detect pivot high: highest in window
+        window_h = high[i - length: i + length + 1]
+        if high[i] == window_h.max() and high[i] > high[i-1] and high[i] > high[i+1]:
+            active_highs.append([high[i], i, False])
+
+        # Detect pivot low: lowest in window
+        window_l = low[i - length: i + length + 1]
+        if low[i] == window_l.min() and low[i] < low[i-1] and low[i] < low[i+1]:
+            active_lows.append([low[i], i, False])
+
+    # Second pass: check sweeps/outbreaks at each bar
+    pivot_h_idx = 0
+    pivot_l_idx = 0
+
+    # Rebuild as forward scan
+    ph_list = []
+    pl_list = []
+
+    for i in range(length, n - length):
+        window_h = high[max(0, i-length): i+length+1]
+        window_l = low[max(0,  i-length): i+length+1]
+        center_h = high[i]
+        center_l = low[i]
+        if len(window_h) == 2*length+1 and center_h == window_h.max():
+            ph_list.append((center_h, i))
+        if len(window_l) == 2*length+1 and center_l == window_l.min():
+            pl_list.append((center_l, i))
+
+    active_ph = []   # (price, bar_idx, broken)
+    active_pl = []
+
+    ph_ptr = 0
+    pl_ptr = 0
+
+    for i in range(n):
+        # Add newly confirmed pivots (confirmed at bar i = pivot_bar + length)
+        while ph_ptr < len(ph_list) and ph_list[ph_ptr][1] + length <= i:
+            active_ph.append([ph_list[ph_ptr][0], ph_list[ph_ptr][1], False])
+            ph_ptr += 1
+        while pl_ptr < len(pl_list) and pl_list[pl_ptr][1] + length <= i:
+            active_pl.append([pl_list[pl_ptr][0], pl_list[pl_ptr][1], False])
+            pl_ptr += 1
+
+        still_ph = []
+        for ph in active_ph:
+            prc, bix, broken = ph
+            if broken:
+                # Retest: closed above after outbreak → outbreak confirmed, check pullback
+                if high[i] > prc and close[i] < prc:
+                    bull_outbreak_out[i] = 1   # retest of breakout level (bullish continuation)
+                still_ph.append(ph)
+            else:
+                if close[i] > prc:
+                    ph[2] = True               # outbreak
+                    bull_outbreak_out[i] = 1
+                    still_ph.append(ph)
+                elif high[i] > prc and close[i] < prc:
+                    bear_sweep_out[i] = 1      # wick above, closed below → bear sweep
+                    # mitigated, remove
+                else:
+                    still_ph.append(ph)
+            if i - bix > 500:                  # expire old pivots
+                still_ph = [p for p in still_ph if p[1] != bix]
+        active_ph = still_ph
+
+        still_pl = []
+        for pl in active_pl:
+            prc, bix, broken = pl
+            if broken:
+                if low[i] < prc and close[i] > prc:
+                    bear_outbreak_out[i] = 1   # retest of breakdown level (bearish continuation)
+                still_pl.append(pl)
+            else:
+                if close[i] < prc:
+                    pl[2] = True               # breakdown
+                    bear_outbreak_out[i] = 1
+                    still_pl.append(pl)
+                elif low[i] < prc and close[i] > prc:
+                    bull_sweep_out[i] = 1      # wick below, closed above → bull sweep
+                else:
+                    still_pl.append(pl)
+            if i - bix > 500:
+                still_pl = [p for p in still_pl if p[1] != bix]
+        active_pl = still_pl
+
+    idx = df.index
+    df["lsw_bull_sweep"]    = pd.Series(bull_sweep_out,    index=idx)  # wick below pivot low  → bull
+    df["lsw_bear_sweep"]    = pd.Series(bear_sweep_out,    index=idx)  # wick above pivot high → bear
+    df["lsw_bull_outbreak"] = pd.Series(bull_outbreak_out, index=idx)  # close above pivot high
+    df["lsw_bear_outbreak"] = pd.Series(bear_outbreak_out, index=idx)  # close below pivot low
+
+    return df
+
+def order_blocks(df: pd.DataFrame, sensitivity: int = 28, mitigation: str = "close") -> pd.DataFrame:
+    """
+    Order Blocks — port of ClayeWeight's Sonarlab Pine v5 script.
+
+    Pine logic:
+      pc = (open - open[4]) / open[4] * 100      ← 4-bar rate of change on open
+      sens = sensitivity / 100
+
+      Bearish OB created when pc crosses under -sens:
+        Look back 4-15 bars, find first GREEN candle (close > open)
+        That candle's high/low is the bearish OB zone
+
+      Bullish OB created when pc crosses over +sens:
+        Look back 4-15 bars, find first RED candle (close < open)
+        That candle's high/low is the bullish OB zone
+
+      Mitigation (close mode): OB removed when close[1] crosses its boundary
+        Bull OB mitigated: close[1] < ob_low
+        Bear OB mitigated: close[1] > ob_high
+
+      Signals:
+        price_in_bull_ob = low < ob_top and ob is active (Pine buy alert)
+        price_in_bear_ob = high > ob_bot and ob is active (Pine sell alert)
+    """
+    open_  = df["open"].values
+    high   = df["high"].values
+    low    = df["low"].values
+    close  = df["close"].values
+    n      = len(close)
+    sens   = sensitivity / 100.0
+
+    # 4-bar ROC on open
+    roc = np.full(n, np.nan)
+    for i in range(4, n):
+        if open_[i-4] != 0:
+            roc[i] = (open_[i] - open_[i-4]) / open_[i-4] * 100
+
+    bull_ob_created  = np.zeros(n, dtype=int)
+    bear_ob_created  = np.zeros(n, dtype=int)
+    in_bull_ob       = np.zeros(n, dtype=int)
+    in_bear_ob       = np.zeros(n, dtype=int)
+    bull_ob_top_arr  = np.full(n, np.nan)
+    bull_ob_bot_arr  = np.full(n, np.nan)
+    bear_ob_top_arr  = np.full(n, np.nan)
+    bear_ob_bot_arr  = np.full(n, np.nan)
+
+    active_bull_obs = []   # (top, bot)
+    active_bear_obs = []
+
+    last_cross_bar = -10   # debounce: must be >5 bars apart (Pine condition)
+
+    for i in range(15, n):
+        # Crossover / crossunder detection
+        cross_up   = (roc[i] > sens)  and (roc[i-1] <= sens)
+        cross_down = (roc[i] < -sens) and (roc[i-1] >= -sens)
+
+        # ── Bullish OB ────────────────────────────────────────────────────
+        if cross_up and (i - last_cross_bar) > 5:
+            for j in range(4, 16):
+                if close[i-j] < open_[i-j]:    # first RED candle
+                    top = high[i-j]
+                    bot = low[i-j]
+                    active_bull_obs.append([top, bot, i])
+                    bull_ob_created[i] = 1
+                    last_cross_bar = i
+                    break
+
+        # ── Bearish OB ────────────────────────────────────────────────────
+        if cross_down and (i - last_cross_bar) > 5:
+            for j in range(4, 16):
+                if close[i-j] > open_[i-j]:    # first GREEN candle
+                    top = high[i-j]
+                    bot = low[i-j]
+                    active_bear_obs.append([top, bot, i])
+                    bear_ob_created[i] = 1
+                    last_cross_bar = i
+                    break
+
+        # ── Mitigation ────────────────────────────────────────────────────
+        prev_close = close[i-1]
+        if mitigation == "close":
+            active_bull_obs = [ob for ob in active_bull_obs if prev_close >= ob[1]]
+            active_bear_obs = [ob for ob in active_bear_obs if prev_close <= ob[0]]
+        else:   # wick
+            active_bull_obs = [ob for ob in active_bull_obs if low[i]  >= ob[1]]
+            active_bear_obs = [ob for ob in active_bear_obs if high[i] <= ob[0]]
+
+        # ── Price inside OB ───────────────────────────────────────────────
+        for ob in active_bull_obs:
+            if low[i] < ob[0]:      # low dipped into OB top
+                in_bull_ob[i] = 1
+                bull_ob_top_arr[i] = ob[0]
+                bull_ob_bot_arr[i] = ob[1]
+                break
+
+        for ob in active_bear_obs:
+            if high[i] > ob[1]:     # high poked into OB bottom
+                in_bear_ob[i] = 1
+                bear_ob_top_arr[i] = ob[0]
+                bear_ob_bot_arr[i] = ob[1]
+                break
+
+    idx = df.index
+    df["ob_bull_created"] = pd.Series(bull_ob_created,  index=idx)   # bar OB was formed
+    df["ob_bear_created"] = pd.Series(bear_ob_created,  index=idx)
+    df["ob_in_bull"]      = pd.Series(in_bull_ob,       index=idx)   # price touching bull OB
+    df["ob_in_bear"]      = pd.Series(in_bear_ob,       index=idx)   # price touching bear OB
+    df["ob_bull_top"]     = pd.Series(bull_ob_top_arr,  index=idx)
+    df["ob_bull_bot"]     = pd.Series(bull_ob_bot_arr,  index=idx)
+    df["ob_bear_top"]     = pd.Series(bear_ob_top_arr,  index=idx)
+    df["ob_bear_bot"]     = pd.Series(bear_ob_bot_arr,  index=idx)
+
+    return df
+
+def smart_money_concepts(df: pd.DataFrame, swing_length: int = 50, internal_length: int = 5, eql_length: int = 3, eql_threshold: float = 0.1) -> pd.DataFrame:
+    """
+    Smart Money Concepts — port of LuxAlgo's Pine v5 SMC indicator.
+    Covers: BOS, CHoCH (swing + internal), Equal Highs/Lows.
+    FVG already handled by fair_value_gap() — not duplicated here.
+
+    Pine logic:
+
+    SWING STRUCTURE (size = swing_length):
+      leg = BEARISH_LEG if high[size] > highest(size)   ← new swing high formed
+            BULLISH_LEG if low[size]  < lowest(size)    ← new swing low formed
+
+      swingHigh.currentLevel = high at last bearish leg pivot
+      swingLow.currentLevel  = low  at last bullish leg pivot
+
+      Bullish BOS  = close crosses above swingHigh.currentLevel
+                     AND swingTrend was already BULLISH  (continuation)
+      Bullish CHoCH= close crosses above swingHigh.currentLevel
+                     AND swingTrend was BEARISH           (reversal)
+      Bearish BOS  = close crosses below swingLow.currentLevel + swingTrend BEARISH
+      Bearish CHoCH= close crosses below swingLow.currentLevel + swingTrend BULLISH
+
+    INTERNAL STRUCTURE (size = internal_length, same logic, smaller window):
+      Same BOS/CHoCH logic but using internalHigh / internalLow pivots.
+      Extra filter: internal pivot must differ from swing pivot.
+
+    EQUAL HIGHS / LOWS (size = eql_length):
+      EQH = new swing high within eql_threshold * ATR of previous swing high
+      EQL = new swing low  within eql_threshold * ATR of previous swing low
+    """
+    high  = df["high"].values
+    low   = df["low"].values
+    close = df["close"].values
+    n     = len(close)
+
+    # ATR(200) for EQH/EQL threshold
+    prev_c = np.roll(close, 1); prev_c[0] = close[0]
+    tr     = np.maximum(high - low, np.maximum(np.abs(high - prev_c), np.abs(low - prev_c)))
+    atr200 = pd.Series(tr).ewm(alpha=1/200, adjust=False).mean().values
+
+    # ── Leg detector ──────────────────────────────────────────────────────────
+    def get_legs(size):
+        """
+        Returns array of leg values (0=bearish leg, 1=bullish leg) using Pine logic:
+          newLegHigh = high[size] > highest(size)   → BEARISH_LEG = 0
+          newLegLow  = low[size]  < lowest(size)    → BULLISH_LEG = 1
+        """
+        legs = np.full(n, -1, dtype=int)   # -1 = undecided
+        for i in range(size, n):
+            window_h = high[max(0, i - size): i]
+            window_l = low[max(0,  i - size): i]
+            if len(window_h) == 0:
+                continue
+            new_leg_high = high[i] > window_h.max()
+            new_leg_low  = low[i]  < window_l.min()
+            if new_leg_high:
+                legs[i] = 0   # BEARISH_LEG — a swing high was broken
+            elif new_leg_low:
+                legs[i] = 1   # BULLISH_LEG — a swing low was broken
+            else:
+                legs[i] = legs[i-1] if i > 0 else -1
+        return legs
+
+    # ── Structure detector ────────────────────────────────────────────────────
+    def detect_structure(size, swing_high_level=None, swing_low_level=None):
+        """
+        Returns per-bar arrays for:
+          bull_bos, bull_choch, bear_bos, bear_choch
+          pivot_high_level, pivot_low_level  (current tracked swing points)
+        """
+        legs = get_legs(size)
+
+        bull_bos   = np.zeros(n, dtype=int)
+        bull_choch = np.zeros(n, dtype=int)
+        bear_bos   = np.zeros(n, dtype=int)
+        bear_choch = np.zeros(n, dtype=int)
+        ph_level   = np.full(n, np.nan)
+        pl_level   = np.full(n, np.nan)
+
+        cur_high   = np.nan   # current tracked pivot high price
+        cur_low    = np.nan   # current tracked pivot low price
+        high_crossed = False
+        low_crossed  = False
+        trend        = 0      # 0=neutral, 1=bull, -1=bear
+
+        prev_leg = -1
+
+        for i in range(size, n):
+            cur_leg = legs[i]
+
+            # New pivot detected (leg changed)
+            if cur_leg != prev_leg and prev_leg != -1:
+                if cur_leg == 0:   # new bearish leg → pivot HIGH formed at i-size bar
+                    pbar = max(0, i - size)
+                    cur_high     = high[pbar]
+                    high_crossed = False
+                if cur_leg == 1:   # new bullish leg → pivot LOW formed
+                    pbar = max(0, i - size)
+                    cur_low     = low[pbar]
+                    low_crossed = False
+
+            ph_level[i] = cur_high
+            pl_level[i] = cur_low
+
+            # Check crossovers
+            if not np.isnan(cur_high) and not high_crossed:
+                prev_close = close[i-1] if i > 0 else close[i]
+                if prev_close <= cur_high and close[i] > cur_high:
+                    if trend == -1 or trend == 0:
+                        bull_choch[i] = 1
+                    else:
+                        bull_bos[i]   = 1
+                    high_crossed = True
+                    trend        = 1
+
+            if not np.isnan(cur_low) and not low_crossed:
+                prev_close = close[i-1] if i > 0 else close[i]
+                if prev_close >= cur_low and close[i] < cur_low:
+                    if trend == 1 or trend == 0:
+                        bear_choch[i] = 1
+                    else:
+                        bear_bos[i]   = 1
+                    low_crossed = True
+                    trend       = -1
+
+            prev_leg = cur_leg
+
+        return bull_bos, bull_choch, bear_bos, bear_choch, ph_level, pl_level
+
+    # ── Run swing structure ───────────────────────────────────────────────────
+    sw_bull_bos, sw_bull_choch, sw_bear_bos, sw_bear_choch, sw_ph, sw_pl = detect_structure(swing_length)
+
+    # ── Run internal structure ────────────────────────────────────────────────
+    int_bull_bos, int_bull_choch, int_bear_bos, int_bear_choch, int_ph, int_pl = detect_structure(internal_length)
+
+    # ── Equal Highs / Lows ────────────────────────────────────────────────────
+    eql_legs   = get_legs(eql_length)
+    eq_high    = np.zeros(n, dtype=int)
+    eq_low     = np.zeros(n, dtype=int)
+    prev_ph    = np.nan
+    prev_pl    = np.nan
+    prev_eleg  = -1
+
+    for i in range(eql_length, n):
+        cur_eleg = eql_legs[i]
+        if cur_eleg != prev_eleg and prev_eleg != -1:
+            pbar = max(0, i - eql_length)
+            if cur_eleg == 0:   # new swing high
+                cur_ph = high[pbar]
+                if not np.isnan(prev_ph) and not np.isnan(atr200[i]):
+                    if abs(cur_ph - prev_ph) < eql_threshold * atr200[i]:
+                        eq_high[i] = 1
+                prev_ph = cur_ph
+            if cur_eleg == 1:   # new swing low
+                cur_pl = low[pbar]
+                if not np.isnan(prev_pl) and not np.isnan(atr200[i]):
+                    if abs(cur_pl - prev_pl) < eql_threshold * atr200[i]:
+                        eq_low[i] = 1
+                prev_pl = cur_pl
+        prev_eleg = cur_eleg
+
+    # ── Swing trend state (rolling) ───────────────────────────────────────────
+    swing_trend = np.zeros(n, dtype=int)   # 1=bull, -1=bear
+    t = 0
+    for i in range(n):
+        if sw_bull_bos[i] or sw_bull_choch[i]:
+            t = 1
+        elif sw_bear_bos[i] or sw_bear_choch[i]:
+            t = -1
+        swing_trend[i] = t
+
+    internal_trend = np.zeros(n, dtype=int)
+    t = 0
+    for i in range(n):
+        if int_bull_bos[i] or int_bull_choch[i]:
+            t = 1
+        elif int_bear_bos[i] or int_bear_choch[i]:
+            t = -1
+        internal_trend[i] = t
+
+    idx = df.index
+
+    # ── Swing structure columns ───────────────────────────────────────────────
+    df["smc_sw_bull_bos"]    = pd.Series(sw_bull_bos,   index=idx)   # swing bullish BOS
+    df["smc_sw_bull_choch"]  = pd.Series(sw_bull_choch, index=idx)   # swing bullish CHoCH
+    df["smc_sw_bear_bos"]    = pd.Series(sw_bear_bos,   index=idx)   # swing bearish BOS
+    df["smc_sw_bear_choch"]  = pd.Series(sw_bear_choch, index=idx)   # swing bearish CHoCH
+    df["smc_sw_trend"]       = pd.Series(swing_trend,   index=idx)   # 1=bull -1=bear
+
+    # ── Internal structure columns ────────────────────────────────────────────
+    df["smc_int_bull_bos"]   = pd.Series(int_bull_bos,    index=idx)
+    df["smc_int_bull_choch"] = pd.Series(int_bull_choch,  index=idx)
+    df["smc_int_bear_bos"]   = pd.Series(int_bear_bos,    index=idx)
+    df["smc_int_bear_choch"] = pd.Series(int_bear_choch,  index=idx)
+    df["smc_int_trend"]      = pd.Series(internal_trend,  index=idx)
+
+    # ── Equal Highs / Lows ────────────────────────────────────────────────────
+    df["smc_eq_high"]        = pd.Series(eq_high, index=idx)   # EQH detected
+    df["smc_eq_low"]         = pd.Series(eq_low,  index=idx)   # EQL detected
+
+    # ── Composite regime helpers ──────────────────────────────────────────────
+    df["smc_sw_is_bull"]     = (pd.Series(swing_trend,   index=idx) == 1).astype(int)
+    df["smc_sw_is_bear"]     = (pd.Series(swing_trend,   index=idx) == -1).astype(int)
+    df["smc_int_is_bull"]    = (pd.Series(internal_trend, index=idx) == 1).astype(int)
+    df["smc_int_is_bear"]    = (pd.Series(internal_trend, index=idx) == -1).astype(int)
+
+    return df
+
 def _sma(src, n): return SMAIndicator(close=src, window=n).sma_indicator()
 def _ema(src, n): return EMAIndicator(close=src, window=n).ema_indicator()
 def _wma(src, n):
@@ -603,7 +1162,6 @@ def heikin_ashi(df):
     ha_high = pd.concat([ha_open, ha_close, df['high']], axis=1).max(axis=1)
     ha_low  = pd.concat([ha_open, ha_close, df['low']], axis=1).min(axis=1)
     return ha_open, ha_high, ha_low, ha_close
-
 
 def supertrend(high, low, close, period=10, mult=3.0):
     atr   = AverageTrueRange(high,low,close,window=period).average_true_range()
@@ -1026,6 +1584,18 @@ def feature_engineer(df: pd.DataFrame) -> pd.DataFrame:
     # ── RMI Trend Sniper ──────────────────────────────────────────────────────
     df = rmi_trend_sniper(df, length=14, pmom=66, nmom=30)
 
+    # ── Fair Value Gap ────────────────────────────────────────────────────────
+    df = fair_value_gap(df, threshold_pct=0.0)
+
+    # ── Liquidity Sweeps ──────────────────────────────────────────────────────
+    df = liquidity_sweeps(df, length=5)
+
+    # ── Order Blocks ──────────────────────────────────────────────────────────
+    df = order_blocks(df, sensitivity=28, mitigation="close")
+
+    # ── Smart Money Concepts (BOS / CHoCH / EQH-EQL) ─────────────────────────
+    df = smart_money_concepts(df, swing_length=50, internal_length=5, eql_length=3, eql_threshold=0.1)
+
     # ── Volatility ────────────────────────────────────────────────────────
     bb=ta.volatility.BollingerBands(df['close'],20,2)
     df['bb_upper']=bb.bollinger_hband(); df['bb_middle']=bb.bollinger_mavg()
@@ -1273,11 +1843,11 @@ def run(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Strategy Factory")
     parser.add_argument("--csv",     default=r"C:\Users\vaibh\OneDrive\Desktop\multi_strategy_generator\data\ethusd_15m.csv", help="Path to OHLCV CSV")
-    parser.add_argument("--n",       type=int, default=1000,  help="Strategies to generate")
-    parser.add_argument("--top",     type=int, default=10,    help="Top N to validate")
+    parser.add_argument("--n",       type=int, default=100000,  help="Strategies to generate")
+    parser.add_argument("--top",     type=int, default=100,    help="Top N to validate")
     parser.add_argument("--workers", type=int, default=4,     help="Parallel workers")
-    parser.add_argument("--out",     default=r"C:\Users\vaibh\OneDrive\Desktop\multi_strategy_generator\results\strategy_results_15m_top10_lookback_commission_standard_new_data_ethusdt.csv", help="Output CSV path")
-    parser.add_argument("--seed",    type=int, default=314,   help="Random seed")
+    parser.add_argument("--out",     default=r"C:\Users\vaibh\OneDrive\Desktop\multi_strategy_generator\results\strategy_results_15m_top10_lookback_commission_standard_new_data_ethusdt_updated.csv", help="Output CSV path")
+    parser.add_argument("--seed",    type=int, default=314159,   help="Random seed")
     args = parser.parse_args()
 
     run(
