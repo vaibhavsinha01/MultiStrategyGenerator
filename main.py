@@ -1721,8 +1721,24 @@ def feature_engineer(df: pd.DataFrame) -> pd.DataFrame:
 #  WORKER — top-level so multiprocessing can pickle it
 # ══════════════════════════════════════════════════════════════════════════════
 
+# used for sequential
+# def _evaluate_one(args):
+#     strat, df = args
+#     metrics = run_backtest(strat, df)
+#     if metrics is None:
+#         return None
+#     if not filter_metrics(metrics):
+#         return None
+#     return {
+#         "strategy": strat,
+#         "metrics":  metrics,
+#         "score":    score_strategy(metrics),
+#     }
+
+# used for multiprocessing
 def _evaluate_one(args):
-    strat, df = args
+    strat, df_path = args
+    df      = pd.read_pickle(df_path)
     metrics = run_backtest(strat, df)
     if metrics is None:
         return None
@@ -1734,18 +1750,116 @@ def _evaluate_one(args):
         "score":    score_strategy(metrics),
     }
 
-
 # ══════════════════════════════════════════════════════════════════════════════
 #  MAIN
 # ══════════════════════════════════════════════════════════════════════════════
 
+# code for sequential
+# def run(
+#     csv_path: str,
+#     n_strategies: int  = 1000,
+#     top_n: int         = 30,
+#     n_workers: int     = 4,
+#     output_csv: str    = "strategy_results.csv",
+#     seed: int          = 42,
+# ):
+#     print(f"\n{'═'*60}")
+#     print("  STRATEGY FACTORY — Alpha Generator")
+#     print(f"{'═'*60}")
+
+#     # ── 1. Load & engineer ─────────────────────────────────────────────
+#     print(f"\n[1/6] Loading data from: {csv_path}")
+#     raw = pd.read_csv(csv_path)
+#     print(f"      Raw shape: {raw.shape}")
+
+#     print("[1/6] Running feature engineering …")
+#     t0 = time.time()
+#     df = feature_engineer(raw)
+#     print(f"      Engineered shape: {df.shape}  ({time.time()-t0:.1f}s)")
+
+#     # ── Signal validation ──────────────────────────────────────────────
+#     from signals import SIGNALS
+#     print("\n[DEBUG] Validating signals...")
+#     broken = 0
+#     for name, meta in SIGNALS.items():
+#         try:
+#             out = meta["fn"](df)
+#             if not isinstance(out, pd.Series):
+#                 print(f"SIGNAL NOT SERIES: {name}")
+#                 broken += 1
+#         except Exception as e:
+#             print(f"SIGNAL BROKEN: {name} → {e}")
+#             broken += 1
+#     print(f"[DEBUG] Broken signals: {broken}")
+
+#     if len(df) < 300:
+#         print("⚠  WARNING: fewer than 300 rows after feature engineering.")
+
+#     # ── 2. Train / test split ──────────────────────────────────────────
+#     print("\n[2/6] Splitting train (80%) / test (20%) …")
+#     train_df, test_df = train_test_split(df, 0.80)
+#     print(f"      Train: {len(train_df)} rows  |  Test: {len(test_df)} rows")
+
+#     # ── 3. Generate strategies ─────────────────────────────────────────
+#     print(f"\n[3/6] Generating {n_strategies} strategies (seed={seed}) …")
+#     t0 = time.time()
+#     strategies = generate_strategies(n=n_strategies, seed=seed)
+#     print(f"      Generated: {len(strategies)}  ({time.time()-t0:.1f}s)")
+
+#     # ── 4. Evaluate on TRAIN ───────────────────────────────────────────
+#     print(f"\n[4/6] Backtesting on TRAIN with {n_workers} workers …")
+#     t0 = time.time()
+#     raw_results = []
+#     for i, s in enumerate(strategies):
+#         debug   = i < 3
+#         metrics = run_backtest(s, train_df, debug=debug)
+#         if metrics is None:
+#             continue
+#         if not filter_metrics(metrics):
+#             continue
+#         raw_results.append({
+#             "strategy": s,
+#             "metrics":  metrics,
+#             "score":    score_strategy(metrics),
+#         })
+#     passed  = raw_results
+#     elapsed = time.time() - t0
+#     print(f"      Evaluated: {len(strategies)}  |  Passed filter: {len(passed)}  ({elapsed:.1f}s)")
+
+#     if not passed:
+#         print("\n✗ No strategies passed the filter.")
+#         print("Try relaxing filters in evaluator.py or supplying more data.")
+#         return
+
+#     # ── 5. Rank ────────────────────────────────────────────────────────
+#     print(f"\n[5/6] Ranking — keeping top {top_n} …")
+#     top = rank_strategies(passed, top_n=top_n)
+#     print_summary(top, title="TOP STRATEGIES (TRAIN)")
+
+#     # ── 6. Validate on TEST ────────────────────────────────────────────
+#     print(f"\n[6/6] Validating top {len(top)} strategies on TEST set …")
+#     t0 = time.time()
+#     validated = validate_on_test(top, test_df)
+#     print(f"      Validated: {len(validated)} strategies consistent  ({time.time()-t0:.1f}s)")
+
+#     if validated:
+#         print_summary(validated, title="VALIDATED STRATEGIES")
+
+#     # ── 7. Save ────────────────────────────────────────────────────────
+#     save_target = validated if validated else top
+#     out_df = save_results(save_target, path=output_csv)
+#     print(f"\n✓ Results saved → {output_csv}  ({len(out_df)} rows)")
+#     print(f"{'═'*60}\n")
+
+#     return save_target
+
 def run(
     csv_path: str,
-    n_strategies: int  = 1000,
-    top_n: int         = 30,
-    n_workers: int     = 4,
-    output_csv: str    = "strategy_results.csv",
-    seed: int          = 42,
+    n_strategies: int = 1000,
+    top_n: int        = 30,
+    n_workers: int    = 13,
+    output_csv: str   = "strategy_results.csv",
+    seed: int         = 42,
 ):
     print(f"\n{'═'*60}")
     print("  STRATEGY FACTORY — Alpha Generator")
@@ -1775,6 +1889,9 @@ def run(
             print(f"SIGNAL BROKEN: {name} → {e}")
             broken += 1
     print(f"[DEBUG] Broken signals: {broken}")
+    if broken > 0:
+        print("⚠  Fix broken signals before running strategies.")
+        return
 
     if len(df) < 300:
         print("⚠  WARNING: fewer than 300 rows after feature engineering.")
@@ -1784,35 +1901,42 @@ def run(
     train_df, test_df = train_test_split(df, 0.80)
     print(f"      Train: {len(train_df)} rows  |  Test: {len(test_df)} rows")
 
+    # Pickle train_df to disk — avoids serializing it 13x on Windows spawn
+    import tempfile, os
+    tmp      = tempfile.NamedTemporaryFile(suffix=".pkl", delete=False)
+    tmp_path = tmp.name
+    tmp.close()
+    train_df.to_pickle(tmp_path)
+    print(f"      Train data pickled → {tmp_path}")
+
     # ── 3. Generate strategies ─────────────────────────────────────────
     print(f"\n[3/6] Generating {n_strategies} strategies (seed={seed}) …")
-    t0 = time.time()
+    t0         = time.time()
     strategies = generate_strategies(n=n_strategies, seed=seed)
     print(f"      Generated: {len(strategies)}  ({time.time()-t0:.1f}s)")
 
-    # ── 4. Evaluate on TRAIN ───────────────────────────────────────────
+    # ── 4. Evaluate on TRAIN (parallel) ───────────────────────────────
     print(f"\n[4/6] Backtesting on TRAIN with {n_workers} workers …")
-    t0 = time.time()
-    raw_results = []
-    for i, s in enumerate(strategies):
-        debug   = i < 3
-        metrics = run_backtest(s, train_df, debug=debug)
-        if metrics is None:
-            continue
-        if not filter_metrics(metrics):
-            continue
-        raw_results.append({
-            "strategy": s,
-            "metrics":  metrics,
-            "score":    score_strategy(metrics),
-        })
-    passed  = raw_results
+    t0        = time.time()
+    args_list = [(s, tmp_path) for s in strategies]
+
+    try:
+        ctx = mp.get_context("spawn")
+        with ctx.Pool(processes=n_workers) as pool:
+            raw_results = pool.map(_evaluate_one, args_list, chunksize=20)
+    finally:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+
+    passed  = [r for r in raw_results if r is not None]
     elapsed = time.time() - t0
     print(f"      Evaluated: {len(strategies)}  |  Passed filter: {len(passed)}  ({elapsed:.1f}s)")
 
     if not passed:
         print("\n✗ No strategies passed the filter.")
-        print("Try relaxing filters in evaluator.py or supplying more data.")
+        print("  Try relaxing filters in evaluator.py or supplying more data.")
         return
 
     # ── 5. Rank ────────────────────────────────────────────────────────
@@ -1822,32 +1946,150 @@ def run(
 
     # ── 6. Validate on TEST ────────────────────────────────────────────
     print(f"\n[6/6] Validating top {len(top)} strategies on TEST set …")
-    t0 = time.time()
+    t0        = time.time()
     validated = validate_on_test(top, test_df)
-    print(f"      Validated: {len(validated)} strategies consistent  ({time.time()-t0:.1f}s)")
+    elapsed   = time.time() - t0
+    print(f"      Validated: {len(validated)} strategies consistent  ({elapsed:.1f}s)")
 
     if validated:
         print_summary(validated, title="VALIDATED STRATEGIES")
 
     # ── 7. Save ────────────────────────────────────────────────────────
-    save_target = validated if validated else top
-    out_df = save_results(save_target, path=output_csv)
-    print(f"\n✓ Results saved → {output_csv}  ({len(out_df)} rows)")
+    train_out = output_csv.replace(".csv", "_train_top500.csv")
+    save_results(top, path=train_out)
+    print(f"\n✓ Train results saved → {train_out}  ({len(top)} rows)")
+
+    if validated:
+        validated_out = output_csv.replace(".csv", "_validated.csv")
+        save_results(validated, path=validated_out)
+        print(f"✓ Validated results saved → {validated_out}  ({len(validated)} rows)")
+    else:
+        print("⚠  No validated strategies — only train results saved.")
+
     print(f"{'═'*60}\n")
 
-    return save_target
+    return validated if validated else top
 
+# def run(
+#     csv_path: str,
+#     n_strategies: int = 1000,
+#     top_n: int        = 30,
+#     n_workers: int    = 13,
+#     output_csv: str   = "strategy_results.csv",
+#     seed: int         = 42,
+# ):
+#     print(f"\n{'═'*60}")
+#     print("  STRATEGY FACTORY — Alpha Generator")
+#     print(f"{'═'*60}")
+
+#     # ── 1. Load & engineer ─────────────────────────────────────────────
+#     print(f"\n[1/6] Loading data from: {csv_path}")
+#     raw = pd.read_csv(csv_path)
+#     print(f"      Raw shape: {raw.shape}")
+
+#     print("[1/6] Running feature engineering …")
+#     t0 = time.time()
+#     df = feature_engineer(raw)
+#     print(f"      Engineered shape: {df.shape}  ({time.time()-t0:.1f}s)")
+
+#     # ── Signal validation ──────────────────────────────────────────────
+#     from signals import SIGNALS
+#     print("\n[DEBUG] Validating signals...")
+#     broken = 0
+#     for name, meta in SIGNALS.items():
+#         try:
+#             out = meta["fn"](df)
+#             if not isinstance(out, pd.Series):
+#                 print(f"SIGNAL NOT SERIES: {name}")
+#                 broken += 1
+#         except Exception as e:
+#             print(f"SIGNAL BROKEN: {name} → {e}")
+#             broken += 1
+#     print(f"[DEBUG] Broken signals: {broken}")
+#     if broken > 0:
+#         print("⚠  Fix broken signals before running strategies.")
+#         return
+
+#     if len(df) < 300:
+#         print("⚠  WARNING: fewer than 300 rows after feature engineering.")
+
+#     # ── 2. Train / test split ──────────────────────────────────────────
+#     print("\n[2/6] Splitting train (80%) / test (20%) …")
+#     train_df, test_df = train_test_split(df, 0.80)
+#     print(f"      Train: {len(train_df)} rows  |  Test: {len(test_df)} rows")
+
+#     # ── Pickle train_df to disk — avoids serializing it 13x on Windows spawn
+#     import tempfile, os
+#     tmp      = tempfile.NamedTemporaryFile(suffix=".pkl", delete=False)
+#     tmp_path = tmp.name
+#     tmp.close()
+#     train_df.to_pickle(tmp_path)
+#     print(f"      Train data pickled → {tmp_path}")
+
+#     # ── 3. Generate strategies ─────────────────────────────────────────
+#     print(f"\n[3/6] Generating {n_strategies} strategies (seed={seed}) …")
+#     t0         = time.time()
+#     strategies = generate_strategies(n=n_strategies, seed=seed)
+#     print(f"      Generated: {len(strategies)}  ({time.time()-t0:.1f}s)")
+
+#     # ── 4. Evaluate on TRAIN (parallel) ───────────────────────────────
+#     print(f"\n[4/6] Backtesting on TRAIN with {n_workers} workers …")
+#     t0        = time.time()
+#     args_list = [(s, tmp_path) for s in strategies]
+
+#     try:
+#         ctx = mp.get_context("spawn")
+#         with ctx.Pool(processes=n_workers) as pool:
+#             raw_results = pool.map(_evaluate_one, args_list, chunksize=20)
+#     finally:
+#         # Always clean up the temp file even if something crashes
+#         try:
+#             os.remove(tmp_path)
+#         except Exception:
+#             pass
+
+#     passed  = [r for r in raw_results if r is not None]
+#     elapsed = time.time() - t0
+#     print(f"      Evaluated: {len(strategies)}  |  Passed filter: {len(passed)}  ({elapsed:.1f}s)")
+
+#     if not passed:
+#         print("\n✗ No strategies passed the filter.")
+#         print("  Try relaxing filters in evaluator.py or supplying more data.")
+#         return
+
+#     # ── 5. Rank ────────────────────────────────────────────────────────
+#     print(f"\n[5/6] Ranking — keeping top {top_n} …")
+#     top = rank_strategies(passed, top_n=top_n)
+#     print_summary(top, title="TOP STRATEGIES (TRAIN)")
+
+#     # ── 6. Validate on TEST ────────────────────────────────────────────
+#     print(f"\n[6/6] Validating top {len(top)} strategies on TEST set …")
+#     t0        = time.time()
+#     validated = validate_on_test(top, test_df)
+#     elapsed   = time.time() - t0
+#     print(f"      Validated: {len(validated)} strategies consistent  ({elapsed:.1f}s)")
+
+#     if validated:
+#         print_summary(validated, title="VALIDATED STRATEGIES")
+
+#     # ── 7. Save ────────────────────────────────────────────────────────
+#     save_target = validated if validated else top
+#     out_df      = save_results(save_target, path=output_csv)
+#     print(f"\n✓ Results saved → {output_csv}  ({len(out_df)} rows)")
+#     print(f"{'═'*60}\n")
+
+#     return save_target
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Strategy Factory")
-    parser.add_argument("--csv",     default=r"C:\Users\vaibh\OneDrive\Desktop\multi_strategy_generator\data\ethusd_15m.csv", help="Path to OHLCV CSV")
-    parser.add_argument("--n",       type=int, default=100000,  help="Strategies to generate")
-    parser.add_argument("--top",     type=int, default=100,    help="Top N to validate")
-    parser.add_argument("--workers", type=int, default=4,     help="Parallel workers")
-    parser.add_argument("--out",     default=r"C:\Users\vaibh\OneDrive\Desktop\multi_strategy_generator\results\strategy_results_15m_top10_lookback_commission_standard_new_data_ethusdt_updated.csv", help="Output CSV path")
-    parser.add_argument("--seed",    type=int, default=314159,   help="Random seed")
+    parser.add_argument("--csv",     default=r"C:\Users\vaibh\OneDrive\Desktop\multi_strategy_generator\data\ethusd_D.csv", help="Path to OHLCV CSV")
+    parser.add_argument("--n",       type=int, default=300000,  help="Strategies to generate") # takes 35 seconds to test 1000 strategies for 5.7k cols of data approx
+    parser.add_argument("--top",     type=int, default=500,    help="Top N to validate")
+    parser.add_argument("--workers", type=int, default=13,     help="Parallel workers")
+    parser.add_argument("--out",     default=r"C:\Users\vaibh\OneDrive\Desktop\multi_strategy_generator\results\strategy_results_1D_top500_lookback_commission_standard_new_data_ethusdt_updated.csv", help="Output CSV path")
+    parser.add_argument("--seed",    type=int, default=131202,   help="Random seed")
     args = parser.parse_args()
 
     run(

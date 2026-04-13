@@ -58,7 +58,7 @@ def _build_strategy_class(strat_dict: dict) -> type:
 
     def next(self):
         i = len(self.data) - 1
-        lookback = 4
+        lookback = 1
 
         if i < lookback:
             return
@@ -69,7 +69,7 @@ def _build_strategy_class(strat_dict: dict) -> type:
             for k in signal_keys
         )
 
-        threshold = max(2, int(len(signal_keys) * 0.67))
+        threshold = max(2, int(len(signal_keys) * 0.75))
         entry = n_active >= threshold
 
         if not entry:

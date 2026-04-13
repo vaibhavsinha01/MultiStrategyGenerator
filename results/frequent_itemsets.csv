@@ -1,0 +1,26 @@
+support,itemsets
+0.212,frozenset({'s100'})
+0.196,frozenset({'s13'})
+0.08,frozenset({'s16'})
+0.12,frozenset({'s20'})
+0.192,frozenset({'s22'})
+0.312,frozenset({'s23'})
+0.124,frozenset({'s25'})
+0.08,frozenset({'s28'})
+0.116,frozenset({'s29'})
+0.084,frozenset({'s50'})
+0.156,frozenset({'s51'})
+0.072,frozenset({'s61'})
+0.164,frozenset({'s62'})
+0.136,frozenset({'s66'})
+0.116,frozenset({'s67'})
+0.124,frozenset({'s76'})
+0.196,frozenset({'s81'})
+0.072,frozenset({'s83'})
+0.1,frozenset({'s86'})
+0.112,frozenset({'s89'})
+0.072,frozenset({'s97'})
+0.088,frozenset({'s98'})
+0.104,"frozenset({'s100', 's62'})"
+0.08,"frozenset({'s81', 's13'})"
+0.076,"frozenset({'s23', 's25'})"

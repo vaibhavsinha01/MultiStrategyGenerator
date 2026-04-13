@@ -56,7 +56,7 @@ def generate_one(direction: str | None = None, max_attempts: int = 200) -> dict 
     if direction is None:
         direction = random.choice(["bull", "bear"])
 
-    n_signals = random.choices([2, 3, 4, 5], weights=[0.20, 0.45, 0.20, 0.15])[0] # initial params are 2,3 and 0.45,0.55
+    n_signals = random.choices([2, 3, 4, 5], weights=[0.20, 0.40, 0.25, 0.15])[0] # initial params are 2,3 and 0.45,0.55
 
     for _ in range(max_attempts):
         # 80% quality pool, 20% full pool
@@ -145,7 +145,7 @@ def generate_strategies(
     for direction, count in [("bull", n_bull), ("bear", n_bear)]:
         attempts = 0
         generated = 0
-        max_total_attempts = count * 30     # safety ceiling
+        max_total_attempts = count * 8     # safety ceiling
 
         while generated < count and attempts < max_total_attempts:
             attempts += 1

@@ -19,10 +19,10 @@ from backtester import run_backtest
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
 
-MIN_TRADES    =  5
-MAX_DRAWDOWN  = -15.0   # worse than -25% → reject
-MIN_WIN_RATE = 30.0
-MIN_RETURN = 0
+MIN_TRADES    =  0
+MAX_DRAWDOWN  = -100.0   # worse than -25% → reject
+MIN_WIN_RATE = 0
+MIN_RETURN = -100.0
 
 # ── 1. Filter ─────────────────────────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ def score_strategy(metrics: dict) -> float:
     # Trade count confidence penalty (diminishing returns above 50)
     trade_confidence = min(n / 50.0, 1.0)
 
-    base = 0.40*r - 0.30*dd + 0.30*wr
+    base = 0.40*r - 0.30*dd + 0.30*wr # here a lot of weightage is given to winrate
     return round(base * trade_confidence, 6)
 
 # ── 3. Rank ───────────────────────────────────────────────────────────────────
