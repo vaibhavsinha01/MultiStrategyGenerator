@@ -1,0 +1,7 @@
+Method,Return_%,Risk_%,Sharpe
+Max Sharpe (MV),26.5829,0.0058,4608.5504
+Min Variance (MV),12.4045,0.0,94816909.9058
+Min CVaR,43.0921,41.0915,-
+Max Return (CVaR cap),43.0921,41.0915,-
+Score-Weighted,20.8286,12.8439,1.6217
+Equal Weight,19.8284,15.7127,-
