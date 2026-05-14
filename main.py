@@ -15,12 +15,13 @@ Flow
 Usage
   python main.py --csv path/to/ethusd_15m.csv --n 750 --top 30 --workers 4
 """
-
 import argparse
+import pickle
 import sys
 import time
 import multiprocessing as mp
 from functools import partial
+from typing import Any
 
 import pandas as pd
 import numpy as np
@@ -33,31 +34,60 @@ from generator import generate_strategies
 from backtester import run_backtest
 from evaluator  import (
     filter_metrics, score_strategy, rank_strategies,
-    train_test_split, validate_on_test, save_results, print_summary
+    train_test_split, validate_on_test, save_results, print_summary,
+    print_regime_breakdown,
 )
+from regime_detection import detect_regimes, summarize_regimes
+from train_prefilter import build_signal_bool_matrix, numpy_entry_prefilter
 
-def _evaluate_one(args):
-    strat, df = args
-    metrics = run_backtest(strat, df)
+_TRAIN_PAYLOAD_MAGIC = "multistrat_train_cpu_v1"
+_WORKER_TRAIN: pd.DataFrame | None = None
 
+
+def _dump_train_frame_cpu(path: str, df: pd.DataFrame) -> None:
+    cols = list(df.columns)
+    arrs = [np.ascontiguousarray(df[c].to_numpy(copy=False)) for c in cols]
+    payload: dict[str, Any] = {
+        "_m": _TRAIN_PAYLOAD_MAGIC,
+        "columns": cols,
+        "arrays": arrs,
+    }
+    with open(path, "wb") as f:
+        pickle.dump(payload, f, protocol=5)
+
+
+def _load_train_frame_cpu(path: str) -> pd.DataFrame:
+    with open(path, "rb") as f:
+        obj = pickle.load(f)
+    if isinstance(obj, pd.DataFrame):
+        return obj
+    if isinstance(obj, dict) and obj.get("_m") == _TRAIN_PAYLOAD_MAGIC:
+        return pd.DataFrame(
+            {c: a for c, a in zip(obj["columns"], obj["arrays"], strict=True)}
+        )
+    raise TypeError(f"Unknown train payload in {path!r}")
+
+
+def _pool_init_train(path: str) -> None:
+    global _WORKER_TRAIN
+    _WORKER_TRAIN = _load_train_frame_cpu(path)
+
+
+def _evaluate_strategy_worker(strat: dict) -> dict | None:
+    """Multiprocessing worker: uses train frame loaded by ``_pool_init_train``."""
+    if _WORKER_TRAIN is None:
+        raise RuntimeError("train pool worker not initialized")
+    metrics = run_backtest(strat, _WORKER_TRAIN)
     if metrics is None:
         return None
-    
-    print("\nDEBUG METRICS CHECK")
-    print(metrics)
-
-    if metrics is not None:
-        print("Trades:", metrics["n_trades"], ">= 10 ?", metrics["n_trades"] >= 10)
-        print("DD:", metrics["max_drawdown"], ">= -25 ?", metrics["max_drawdown"] >= -25)
-
     if not filter_metrics(metrics):
         return None
-
     return {
         "strategy": strat,
         "metrics": metrics,
         "score": score_strategy(metrics),
     }
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  FEATURE ENGINEERING HELPERS
@@ -1718,39 +1748,6 @@ def feature_engineer(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  WORKER — top-level so multiprocessing can pickle it
-# ══════════════════════════════════════════════════════════════════════════════
-
-# used for sequential
-# def _evaluate_one(args):
-#     strat, df = args
-#     metrics = run_backtest(strat, df)
-#     if metrics is None:
-#         return None
-#     if not filter_metrics(metrics):
-#         return None
-#     return {
-#         "strategy": strat,
-#         "metrics":  metrics,
-#         "score":    score_strategy(metrics),
-#     }
-
-# used for multiprocessing
-def _evaluate_one(args):
-    strat, df_path = args
-    df      = pd.read_pickle(df_path)
-    metrics = run_backtest(strat, df)
-    if metrics is None:
-        return None
-    if not filter_metrics(metrics):
-        return None
-    return {
-        "strategy": strat,
-        "metrics":  metrics,
-        "score":    score_strategy(metrics),
-    }
-
-# ══════════════════════════════════════════════════════════════════════════════
 #  MAIN
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1864,21 +1861,41 @@ def run(
     print(f"\n{'═'*60}")
     print("  STRATEGY FACTORY — Alpha Generator")
     print(f"{'═'*60}")
+    bench: dict[str, float] = {}
 
     # ── 1. Load & engineer ─────────────────────────────────────────────
     print(f"\n[1/6] Loading data from: {csv_path}")
-    raw = pd.read_csv(csv_path)
-    print(f"      Raw shape: {raw.shape}")
+    t_load = time.time()
+    raw = None
+    try:
+        import polars as pl
+
+        raw = pl.read_csv(csv_path).to_pandas()
+    except Exception:
+        raw = None
+    if raw is None:
+        raw = pd.read_csv(csv_path)
+    bench["csv_load"] = time.time() - t_load
+    print(f"      Raw shape: {raw.shape}  [BENCH] csv_load={bench['csv_load']:.2f}s")
 
     print("[1/6] Running feature engineering …")
     t0 = time.time()
     df = feature_engineer(raw)
-    print(f"      Engineered shape: {df.shape}  ({time.time()-t0:.1f}s)")
+    bench["feature_engineering"] = time.time() - t0
+    print(f"      Engineered shape: {df.shape}  ({bench['feature_engineering']:.1f}s)")
+
+    print("[1/6] Detecting market regimes with GaussianNB ...")
+    t0 = time.time()
+    df = detect_regimes(df)
+    bench["regimes"] = time.time() - t0
+    print(f"      Regime columns added ({bench['regimes']:.2f}s)")
+    print(summarize_regimes(df).to_string(index=False))
 
     # ── Signal validation ──────────────────────────────────────────────
     from signals import SIGNALS
     print("\n[DEBUG] Validating signals...")
     broken = 0
+    t_sv = time.time()
     for name, meta in SIGNALS.items():
         try:
             out = meta["fn"](df)
@@ -1888,7 +1905,8 @@ def run(
         except Exception as e:
             print(f"SIGNAL BROKEN: {name} → {e}")
             broken += 1
-    print(f"[DEBUG] Broken signals: {broken}")
+    bench["signal_validate"] = time.time() - t_sv
+    print(f"[DEBUG] Broken signals: {broken}  [BENCH] signal_validate={bench['signal_validate']:.2f}s")
     if broken > 0:
         print("⚠  Fix broken signals before running strategies.")
         return
@@ -1901,29 +1919,63 @@ def run(
     train_df, test_df = train_test_split(df, 0.80)
     print(f"      Train: {len(train_df)} rows  |  Test: {len(test_df)} rows")
 
-    # Pickle train_df to disk — avoids serializing it 13x on Windows spawn
+    # CPU-only train bundle for workers (column names + NumPy arrays).
     import tempfile, os
     tmp      = tempfile.NamedTemporaryFile(suffix=".pkl", delete=False)
     tmp_path = tmp.name
     tmp.close()
-    train_df.to_pickle(tmp_path)
-    print(f"      Train data pickled → {tmp_path}")
+    _dump_train_frame_cpu(tmp_path, train_df)
+    print(f"      Train CPU bundle written → {tmp_path}")
 
     # ── 3. Generate strategies ─────────────────────────────────────────
     print(f"\n[3/6] Generating {n_strategies} strategies (seed={seed}) …")
     t0         = time.time()
     strategies = generate_strategies(n=n_strategies, seed=seed)
-    print(f"      Generated: {len(strategies)}  ({time.time()-t0:.1f}s)")
+    bench["generation"] = time.time() - t0
+    print(f"      Generated: {len(strategies)}  ({bench['generation']:.1f}s)")
 
-    # ── 4. Evaluate on TRAIN (parallel) ───────────────────────────────
-    print(f"\n[4/6] Backtesting on TRAIN with {n_workers} workers …")
-    t0        = time.time()
-    args_list = [(s, tmp_path) for s in strategies]
+    # ── 4. Evaluate on TRAIN (NumPy prefilter in main → workers load train once) ─
+    keys = list(SIGNALS.keys())
+    key_to_idx = {k: i for i, k in enumerate(keys)}
+    t_sm = time.time()
+    sig_mat = build_signal_bool_matrix(train_df, keys, SIGNALS)
+    print(
+        f"      [BENCH] train_signal_matrix {time.time() - t_sm:.2f}s  "
+        f"(signals×bars={sig_mat.shape[0]}×{sig_mat.shape[1]})"
+    )
 
+    t_pf = time.time()
+    raw_results, pending = numpy_entry_prefilter(strategies, sig_mat, key_to_idx)
+    print(
+        f"      [BENCH] entry_prefilter {time.time() - t_pf:.2f}s  "
+        f"(full_backtest_candidates={len(pending)} of {len(strategies)})"
+    )
+
+    print(
+        f"\n[4/6] Backtesting on TRAIN — NumPy prefilter + "
+        f"{n_workers} workers (train frame once per worker) …"
+    )
+
+    t0 = time.time()
+
+    if mp.parent_process() is not None:
+        raise RuntimeError(
+            "Refusing to start a train Pool from a worker subprocess "
+            "(multiprocessing.parent_process() is set). Run: python main.py ..."
+        )
     try:
-        ctx = mp.get_context("spawn")
-        with ctx.Pool(processes=n_workers) as pool:
-            raw_results = pool.map(_evaluate_one, args_list, chunksize=20)
+        if pending:
+            pend_strats = [s for _, s in pending]
+            ctx = mp.get_context("spawn")
+            chunk = max(32, min(256, n_workers * 4))
+            with ctx.Pool(
+                processes=n_workers,
+                initializer=_pool_init_train,
+                initargs=(tmp_path,),
+            ) as pool:
+                mapped = pool.map(_evaluate_strategy_worker, pend_strats, chunksize=chunk)
+            for (gi, _), res in zip(pending, mapped):
+                raw_results[gi] = res
     finally:
         try:
             os.remove(tmp_path)
@@ -1932,6 +1984,7 @@ def run(
 
     passed  = [r for r in raw_results if r is not None]
     elapsed = time.time() - t0
+    bench["train_backtests"] = elapsed
     print(f"      Evaluated: {len(strategies)}  |  Passed filter: {len(passed)}  ({elapsed:.1f}s)")
 
     if not passed:
@@ -1943,16 +1996,22 @@ def run(
     print(f"\n[5/6] Ranking — keeping top {top_n} …")
     top = rank_strategies(passed, top_n=top_n)
     print_summary(top, title="TOP STRATEGIES (TRAIN)")
+    print_regime_breakdown(top, title="TRAIN REGIME BREAKDOWN", metric_key="metrics", top_n=10)
 
     # ── 6. Validate on TEST ────────────────────────────────────────────
     print(f"\n[6/6] Validating top {len(top)} strategies on TEST set …")
     t0        = time.time()
     validated = validate_on_test(top, test_df)
     elapsed   = time.time() - t0
-    print(f"      Validated: {len(validated)} strategies consistent  ({elapsed:.1f}s)")
+    bench["validation"] = elapsed
+    print(
+        f"      Validated: {len(validated)} strategies consistent  ({elapsed:.1f}s)  "
+        f"[BENCH] validation={bench['validation']:.2f}s"
+    )
 
     if validated:
         print_summary(validated, title="VALIDATED STRATEGIES")
+        print_regime_breakdown(validated, title="TEST REGIME BREAKDOWN", metric_key="test_metrics", top_n=10)
 
     # ── 7. Save ────────────────────────────────────────────────────────
     train_out = output_csv.replace(".csv", "_train_top500.csv")
@@ -1967,6 +2026,17 @@ def run(
         print("⚠  No validated strategies — only train results saved.")
 
     print(f"{'═'*60}\n")
+
+    print(
+        "      [BENCH] summary — "
+        f"csv_load={bench.get('csv_load', 0):.2f}s  "
+        f"feature_engineering={bench.get('feature_engineering', 0):.1f}s  "
+        f"regimes={bench.get('regimes', 0):.2f}s  "
+        f"signal_validate={bench.get('signal_validate', 0):.2f}s  "
+        f"generation={bench.get('generation', 0):.1f}s  "
+        f"train_backtests={bench.get('train_backtests', 0):.1f}s  "
+        f"validation={bench.get('validation', 0):.2f}s"
+    )
 
     return validated if validated else top
 
@@ -2083,13 +2153,19 @@ def run(
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    mp.freeze_support()
+    try:
+        mp.set_start_method("spawn", force=True)
+    except RuntimeError:
+        pass
+
     parser = argparse.ArgumentParser(description="Strategy Factory")
-    parser.add_argument("--csv",     default=r"C:\Users\vaibh\OneDrive\Desktop\multi_strategy_generator\data\ethusd_D.csv", help="Path to OHLCV CSV")
-    parser.add_argument("--n",       type=int, default=300000,  help="Strategies to generate") # takes 35 seconds to test 1000 strategies for 5.7k cols of data approx
-    parser.add_argument("--top",     type=int, default=500,    help="Top N to validate")
+    parser.add_argument("--csv",     default=r"C:\Users\vaibh\OneDrive\Desktop\Workstation\MultiStrategyGenerator\data\btcusdt_1m.csv", help="Path to OHLCV CSV")
+    parser.add_argument("--n",       type=int, default=25000,  help="Strategies to generate") # takes 35 seconds to test 1000 strategies for 5.7k cols of data approx
+    parser.add_argument("--top",     type=int, default=1000,    help="Top N to validate")
     parser.add_argument("--workers", type=int, default=13,     help="Parallel workers")
-    parser.add_argument("--out",     default=r"C:\Users\vaibh\OneDrive\Desktop\multi_strategy_generator\results\strategy_results_1D_top500_lookback_commission_standard_new_data_ethusdt_updated.csv", help="Output CSV path")
-    parser.add_argument("--seed",    type=int, default=131202,   help="Random seed")
+    parser.add_argument("--out",     default=r"C:\Users\vaibh\OneDrive\Desktop\Workstation\MultiStrategyGenerator\results\strategy_results_1m_btcusdt.csv", help="Output CSV path")
+    parser.add_argument("--seed",    type=int, default=709,   help="Random seed")
     args = parser.parse_args()
 
     run(

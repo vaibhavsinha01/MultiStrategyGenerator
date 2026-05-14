@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Strategy Report</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --ink: #17202a;
+      --muted: #667085;
+      --line: #d8dde6;
+      --accent: #116466;
+      --accent-2: #c84b31;
+      --good: #0f7a4d;
+      --bad: #b42318;
+      --warn: #9a6700;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+
+    header {
+      background: #17202a;
+      color: #fff;
+      padding: 24px 28px 18px;
+      border-bottom: 4px solid var(--accent);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.2;
+      font-weight: 760;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: #cfd6df;
+      font-size: 14px;
+    }
+
+    main {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 20px 20px 36px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 12px;
+      align-items: end;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+
+    .doc-button {
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      border-radius: 6px;
+      min-height: 34px;
+      padding: 7px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .doc-button:hover {
+      background: #0d5254;
+    }
+
+    .doc-button:disabled {
+      cursor: progress;
+      opacity: 0.7;
+    }
+
+    .action-cell {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .code-button {
+      border: 1px solid var(--accent-2);
+      background: var(--accent-2);
+      color: #fff;
+      border-radius: 6px;
+      min-height: 34px;
+      padding: 7px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .code-button:hover {
+      background: #a33d28;
+    }
+
+    .code-button:disabled {
+      cursor: progress;
+      opacity: 0.7;
+    }
+
+    .status {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: 650;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 22px;
+      line-height: 1.1;
+    }
+
+    .table-wrap {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1240px;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 10px 9px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #eef2f5;
+      color: #344054;
+      z-index: 1;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    td:first-child, th:first-child,
+    td:nth-child(2), th:nth-child(2),
+    td:nth-child(3), th:nth-child(3) {
+      text-align: left;
+    }
+
+    tbody tr:hover {
+      background: #f9fbfc;
+    }
+
+    .signals {
+      max-width: 190px;
+      white-space: normal;
+      line-height: 1.35;
+    }
+
+    .positive { color: var(--good); font-weight: 700; }
+    .negative { color: var(--bad); font-weight: 700; }
+    .muted { color: var(--muted); }
+
+    .regime-cell {
+      min-width: 158px;
+      white-space: normal;
+      text-align: left;
+      line-height: 1.4;
+    }
+
+    .regime-name {
+      display: inline-block;
+      min-width: 58px;
+      color: #344054;
+      font-weight: 700;
+    }
+
+    .empty {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      color: var(--muted);
+    }
+
+    code {
+      display: block;
+      margin-top: 10px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      background: #111827;
+      color: #eef2f5;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 900px) {
+      header { padding: 20px 16px 16px; }
+      main { padding: 14px; }
+      .controls { grid-template-columns: 1fr 1fr; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      .controls, .summary-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap: 12px;">
+      <div>
+        <h1>Strategy Report</h1>
+        <div class="subtitle">Top strategy results by symbol, timeframe, and market regime</div>
+      </div>
+      <div style="padding-bottom: 6px;">
+        <a href="/logout" style="color:#cfd6df; text-decoration:none; font-weight:700;">Logout</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="controls" aria-label="Report filters">
+      <label>
+        Symbol
+        <select id="symbol"></select>
+      </label>
+      <label>
+        Timeframe
+        <select id="timeframe"></select>
+      </label>
+      <label>
+        Dataset
+        <select id="dataset">
+          <option value="validated">Validated</option>
+          <option value="train">Train</option>
+        </select>
+      </label>
+      <label>
+        Rows
+        <select id="limit">
+          <option value="100">Top 100</option>
+          <option value="500">Top 500</option>
+          <option value="1000">Top 1000</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="status" id="status"></section>
+    <section class="summary-grid" id="summary"></section>
+    <section id="report"></section>
+  </main>
+
+  <script>
+    const els = {
+      symbol: document.querySelector("#symbol"),
+      timeframe: document.querySelector("#timeframe"),
+      dataset: document.querySelector("#dataset"),
+      limit: document.querySelector("#limit"),
+      status: document.querySelector("#status"),
+      summary: document.querySelector("#summary"),
+      report: document.querySelector("#report"),
+    };
+
+    let options = null;
+
+    const fmt = {
+      pct: (value) => `${Number(value || 0).toFixed(2)}%`,
+      num: (value) => Number(value || 0).toLocaleString(),
+      dec: (value, places = 2) => Number(value || 0).toFixed(places),
+      money: (value) => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }),
+    };
+
+    function classFor(value) {
+      const number = Number(value || 0);
+      if (number > 0) return "positive";
+      if (number < 0) return "negative";
+      return "muted";
+    }
+
+    function setSelect(select, values, selected) {
+      select.innerHTML = values.map((value) => (
+        `<option value="${value}" ${value === selected ? "selected" : ""}>${value.toUpperCase()}</option>`
+      )).join("");
+    }
+
+    function updateTimeframes() {
+      const symbol = els.symbol.value;
+      const timeframes = options.timeframesBySymbol[symbol] || [];
+      const preferred = timeframes.includes("15m") ? "15m" : timeframes[0];
+      setSelect(els.timeframe, timeframes, els.timeframe.value || preferred);
+    }
+
+    function metricCard(label, value, klass = "") {
+      return `<div class="metric"><span>${label}</span><strong class="${klass}">${value}</strong></div>`;
+    }
+
+    function regimeText(strategy, split, regime) {
+      const item = strategy.regimes[split][regime];
+      return `
+        <div>
+          <span class="regime-name">${regime}</span>
+          <span>${item.trades} trades</span>,
+          <span class="${classFor(item.returnPct)}">${fmt.pct(item.returnPct)}</span>,
+          <span>${fmt.pct(item.winRate)} WR</span>
+        </div>
+      `;
+    }
+
+    async function downloadStrategyCode(strategyId, button) {
+      const params = new URLSearchParams({
+        symbol: els.symbol.value,
+        timeframe: els.timeframe.value,
+        dataset: els.dataset.value,
+        strategyId,
+      });
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = "Generating";
+      try {
+        const response = await fetch(`/api/strategy-code?${params}`);
+        if (!response.ok) {
+          const text = await response.text();
+          let message = text;
+          try {
+            const data = JSON.parse(text);
+            message = data.error || message;
+          } catch {
+            /* plain text */
+          }
+          window.alert(message || `Request failed (${response.status})`);
+          return;
+        }
+        const blob = await response.blob();
+        const disposition = response.headers.get("content-disposition") || "";
+        const match = disposition.match(/filename="([^"]+)"/);
+        const filename = match ? match[1] : `main_${strategyId}.py`;
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
+    async function downloadDocument(strategyId, button) {
+      const params = new URLSearchParams({
+        symbol: els.symbol.value,
+        timeframe: els.timeframe.value,
+        dataset: els.dataset.value,
+        strategyId,
+      });
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = "Generating";
+      try {
+        const response = await fetch(`/api/document?${params}`);
+        const blob = await response.blob();
+        const disposition = response.headers.get("content-disposition") || "";
+        const match = disposition.match(/filename="([^"]+)"/);
+        const filename = match ? match[1] : `strategy_${strategyId}.pdf`;
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
+    function renderMissing(data) {
+      els.summary.innerHTML = "";
+      els.status.innerHTML = `
+        <span class="pill">${data.symbol.toUpperCase()}</span>
+        <span class="pill">${data.timeframe.toUpperCase()}</span>
+        <span class="pill">No ${data.dataset} report found</span>
+      `;
+      els.report.innerHTML = `
+        <div class="empty">
+          No generated strategy report exists for this selection yet.
+          <code>${data.runCommand}</code>
+        </div>
+      `;
+    }
+
+    function renderReport(data) {
+      if (!data.available) {
+        renderMissing(data);
+        return;
+      }
+
+      const best = data.top[0];
+      els.status.innerHTML = `
+        <span class="pill">${data.symbol.toUpperCase()}</span>
+        <span class="pill">${data.timeframe.toUpperCase()}</span>
+        <span class="pill">${data.dataset}</span>
+        <span class="pill">${data.sourceFile}</span>
+      `;
+
+      els.summary.innerHTML = [
+        metricCard("Strategies In File", fmt.num(data.totalStrategies)),
+        metricCard("Best Test Return", best ? fmt.pct(best.test.returnPct) : "0.00%", best ? classFor(best.test.returnPct) : ""),
+        metricCard("Best Train Return", best ? fmt.pct(best.train.returnPct) : "0.00%", best ? classFor(best.train.returnPct) : ""),
+        metricCard("Best Test Trades", best ? fmt.num(best.test.trades) : "0"),
+        metricCard("Best Score", best ? fmt.dec(best.score, 5) : "0.00000"),
+      ].join("");
+
+      const rows = data.top.map((strategy) => `
+        <tr>
+          <td>#${strategy.rank}</td>
+          <td><strong>${strategy.id}</strong><br><span class="muted">${strategy.direction}</span></td>
+          <td class="signals">${strategy.signals}</td>
+          <td>${fmt.pct(strategy.train.returnPct)}</td>
+          <td>${fmt.dec(strategy.train.sharpe, 2)}</td>
+          <td class="${classFor(strategy.train.drawdown)}">${fmt.pct(strategy.train.drawdown)}</td>
+          <td>${strategy.train.trades}</td>
+          <td>${fmt.pct(strategy.train.winRate)}</td>
+          <td class="${classFor(strategy.test.returnPct)}">${fmt.pct(strategy.test.returnPct)}</td>
+          <td>${fmt.dec(strategy.test.sharpe, 2)}</td>
+          <td class="${classFor(strategy.test.drawdown)}">${fmt.pct(strategy.test.drawdown)}</td>
+          <td>${strategy.test.trades}</td>
+          <td>${fmt.pct(strategy.test.winRate)}</td>
+          <td>${fmt.pct(strategy.tp * 100)}</td>
+          <td>${fmt.pct(strategy.sl * 100)}</td>
+          <td class="regime-cell">${["chop", "trendy", "volatile"].map((r) => regimeText(strategy, "test", r)).join("")}</td>
+          <td class="regime-cell">${["chop", "trendy", "volatile"].map((r) => regimeText(strategy, "train", r)).join("")}</td>
+          <td class="action-cell">
+            <button type="button" class="doc-button" data-doc-id="${strategy.id}">Document</button>
+          </td>
+        </tr>
+      `).join("");
+
+      els.report.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Strategy</th>
+                <th>Signals</th>
+                <th>Train Ret</th>
+                <th>Train Sharpe</th>
+                <th>Train DD</th>
+                <th>Train Trades</th>
+                <th>Train WR</th>
+                <th>Test Ret</th>
+                <th>Test Sharpe</th>
+                <th>Test DD</th>
+                <th>Test Trades</th>
+                <th>Test WR</th>
+                <th>TP</th>
+                <th>SL</th>
+                <th>Test Regimes</th>
+                <th>Train Regimes</th>
+                <th>Exports</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+
+      els.report.querySelectorAll(".doc-button").forEach((button) => {
+        button.addEventListener("click", () => downloadDocument(button.dataset.docId, button));
+      });
+    }
+
+    async function loadReport() {
+      const params = new URLSearchParams({
+        symbol: els.symbol.value,
+        timeframe: els.timeframe.value,
+        dataset: els.dataset.value,
+        limit: els.limit.value,
+      });
+      els.status.innerHTML = `<span class="pill">Loading report</span>`;
+      const response = await fetch(`/api/report?${params}`);
+      renderReport(await response.json());
+    }
+
+    async function init() {
+      const response = await fetch("/api/options");
+      options = await response.json();
+      const initialSymbol = options.symbols.includes("ethusd") ? "ethusd" : options.symbols[0];
+      setSelect(els.symbol, options.symbols, initialSymbol);
+      updateTimeframes();
+      if ([...els.timeframe.options].some((opt) => opt.value === "15m")) {
+        els.timeframe.value = "15m";
+      }
+      await loadReport();
+    }
+
+    els.symbol.addEventListener("change", () => {
+      updateTimeframes();
+      loadReport();
+    });
+    els.timeframe.addEventListener("change", loadReport);
+    els.dataset.addEventListener("change", loadReport);
+    els.limit.addEventListener("change", loadReport);
+
+    init().catch((error) => {
+      els.status.innerHTML = `<span class="pill">Could not load report</span>`;
+      els.report.innerHTML = `<div class="empty">${error.message}</div>`;
+    });
+  </script>
+</body>
+</html>

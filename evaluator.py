@@ -17,6 +17,18 @@ import pandas as pd
 from backtester import run_backtest
 
 
+REGIMES = ("chop", "trendy", "volatile")
+REGIME_METRIC_COLUMNS = (
+    "trades",
+    "trade_share",
+    "pnl",
+    "return_pct",
+    "win_rate",
+    "avg_trade_return_pct",
+    "total_trade_return_pct",
+)
+
+
 # ── Thresholds ────────────────────────────────────────────────────────────────
 
 MIN_TRADES    =  0
@@ -140,6 +152,9 @@ def _flatten_result(item: dict) -> dict:
         "train_winrate":   metrics["win_rate"],
         "score":           item["score"],
     }
+
+    row.update(_flatten_regime_metrics(metrics, prefix="train"))
+
     # test metrics if present
     if "test_metrics" in item:
         tm = item["test_metrics"]
@@ -151,7 +166,53 @@ def _flatten_result(item: dict) -> dict:
             "test_winrate":  tm["win_rate"],
             "test_score":    item.get("test_score", ""),
         })
+        row.update(_flatten_regime_metrics(tm, prefix="test"))
     return row
+
+
+def _flatten_regime_metrics(metrics: dict, prefix: str) -> dict:
+    regime_metrics = metrics.get("regime_metrics", {})
+    row = {}
+    for regime in REGIMES:
+        values = regime_metrics.get(regime, {})
+        for metric_name in REGIME_METRIC_COLUMNS:
+            key = f"{prefix}_{regime}_{metric_name}"
+            row[key] = values.get(metric_name, 0)
+    return row
+
+
+def print_regime_breakdown(
+    results: list[dict],
+    title: str = "Regime Breakdown",
+    metric_key: str = "metrics",
+    top_n: int = 10,
+) -> None:
+    """Print compact per-regime trade/return diagnostics for top results."""
+    if not results:
+        return
+
+    print(f"\n{title}  (showing {min(top_n, len(results))} strategies)")
+    header = (
+        f"{'ID':<10} {'Regime':<9} {'Trades':>6} {'Share':>7} "
+        f"{'Ret%':>8} {'WR%':>7} {'AvgTr%':>8}"
+    )
+    print(header)
+    print("-" * len(header))
+
+    for item in results[:top_n]:
+        strategy_id = item["strategy"]["id"]
+        metrics = item.get(metric_key, {})
+        regime_metrics = metrics.get("regime_metrics", {})
+        for regime in REGIMES:
+            values = regime_metrics.get(regime, {})
+            print(
+                f"{strategy_id:<10} {regime:<9} "
+                f"{values.get('trades', 0):>6} "
+                f"{values.get('trade_share', 0) * 100:>6.1f}% "
+                f"{values.get('return_pct', 0):>8.2f} "
+                f"{values.get('win_rate', 0):>7.1f} "
+                f"{values.get('avg_trade_return_pct', 0):>8.2f}"
+            )
 
 
 def save_results(

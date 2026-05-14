@@ -70,7 +70,7 @@ def generate_one(direction: str | None = None, max_attempts: int = 200) -> dict 
         if len(pool) < n_dir:
             continue
         # selected = random.sample(pool, n_dir)
-        valid_keys = set(SIGNALS.keys())
+        valid_keys = VALID_SIGNALS
 
         selected = random.sample(pool, n_dir)
 

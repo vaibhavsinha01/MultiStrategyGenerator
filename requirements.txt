@@ -1,0 +1,4 @@
+fastapi
+uvicorn
+passlib[bcrypt]
+polars>=1.0.0

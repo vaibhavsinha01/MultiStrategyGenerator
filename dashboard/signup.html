@@ -1,0 +1,160 @@
+<!-- signup.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Simurgh Capital - Sign Up</title>
+
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body{
+      height:100vh;
+      background: linear-gradient(135deg,#050816,#0c1224,#111827);
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      color:white;
+    }
+
+    .container{
+      width:430px;
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+      border-radius:18px;
+      padding:40px;
+      box-shadow:0 10px 40px rgba(0,0,0,0.4);
+    }
+
+    .logo{
+      text-align:center;
+      margin-bottom:10px;
+      font-size:30px;
+      font-weight:bold;
+      letter-spacing:2px;
+    }
+
+    .subtitle{
+      text-align:center;
+      color:#b9c2d0;
+      margin-bottom:30px;
+      font-size:14px;
+    }
+
+    .input-group{
+      margin-bottom:18px;
+    }
+
+    label{
+      display:block;
+      margin-bottom:8px;
+      font-size:14px;
+      color:#d6dce8;
+    }
+
+    input{
+      width:100%;
+      padding:14px;
+      border:none;
+      outline:none;
+      border-radius:10px;
+      background:#1b2436;
+      color:white;
+      font-size:15px;
+    }
+
+    input::placeholder{
+      color:#94a3b8;
+    }
+
+    button{
+      width:100%;
+      padding:14px;
+      border:none;
+      border-radius:10px;
+      background:white;
+      color:#0b1120;
+      font-weight:bold;
+      font-size:15px;
+      cursor:pointer;
+      transition:0.3s;
+      margin-top:10px;
+    }
+
+    button:hover{
+      background:#dbe4ff;
+      transform:translateY(-2px);
+    }
+
+    .footer{
+      margin-top:25px;
+      text-align:center;
+      font-size:14px;
+      color:#aeb8c7;
+    }
+
+    .footer a{
+      color:white;
+      text-decoration:none;
+      font-weight:bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="logo">SIMURGH CAPITAL</div>
+    <div class="subtitle">Create Your Account</div>
+
+    <form id="signupForm" method="post" action="/auth/signup">
+
+      <div class="input-group">
+        <label>Full Name</label>
+        <input id="full_name" name="full_name" type="text" placeholder="Enter your full name" required />
+      </div>
+
+      <div class="input-group">
+        <label>Email</label>
+        <input id="email" name="email" type="email" placeholder="Enter your email" required />
+      </div>
+
+      <div class="input-group">
+        <label>Password</label>
+        <input id="password" name="password" type="password" placeholder="Create a password" required />
+      </div>
+
+      <div class="input-group">
+        <label>Confirm Password</label>
+        <input id="confirm_password" name="confirm_password" type="password" placeholder="Confirm password" required />
+      </div>
+
+      <button type="submit">Create Account</button>
+
+    </form>
+
+    <div class="footer">
+      Already have an account?
+      <a href="login.html">Login</a>
+    </div>
+  </div>
+
+  <script>
+    // Keep this page fully static; server handles signup and redirects.
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("error");
+    if (error === "password_mismatch") {
+      alert("Passwords do not match.");
+    } else if (error === "email_exists") {
+      alert("Email already exists. Please login instead.");
+    }
+  </script>
+
+</body>
+</html>

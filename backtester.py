@@ -20,8 +20,9 @@ import logging
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.ERROR)
 
-COMMISSION   = 0.002 # changed from 0.002
+COMMISSION   = 0.001 # changed from 0.001 for crypto markets
 INITIAL_CASH = 1_000_000
+REGIMES = ("chop", "trendy", "volatile")
 
 # ─────────────────────────────────────────────────────────────
 # DATA PREP
@@ -95,6 +96,64 @@ def _build_strategy_class(strat_dict: dict) -> type:
         (Strategy,),
         {"init": init, "next": next},
     )
+
+
+def _empty_regime_metrics() -> dict:
+    return {
+        regime: {
+            "trades": 0,
+            "trade_share": 0.0,
+            "pnl": 0.0,
+            "return_pct": 0.0,
+            "win_rate": 0.0,
+            "avg_trade_return_pct": 0.0,
+            "total_trade_return_pct": 0.0,
+        }
+        for regime in REGIMES
+    }
+
+
+def _trade_metrics_by_regime(stats: pd.Series, df: pd.DataFrame) -> dict:
+    """
+    Attribute closed trades to the market regime active on the entry bar.
+
+    return_pct is PnL contribution relative to INITIAL_CASH.
+    total_trade_return_pct is the sum of each trade's own ReturnPct.
+    """
+    regime_metrics = _empty_regime_metrics()
+    if "market_regime" not in df.columns or "_trades" not in stats:
+        return regime_metrics
+
+    trades = stats["_trades"]
+    if trades is None or trades.empty or "EntryBar" not in trades.columns:
+        return regime_metrics
+
+    trades = trades.copy()
+    entry_bars = trades["EntryBar"].astype(int).clip(lower=0, upper=len(df) - 1)
+    trades["entry_regime"] = df["market_regime"].iloc[entry_bars].to_numpy()
+    total_trades = len(trades)
+
+    for regime in REGIMES:
+        regime_trades = trades[trades["entry_regime"] == regime]
+        n_trades = len(regime_trades)
+        if n_trades == 0:
+            continue
+
+        pnl = float(regime_trades["PnL"].sum())
+        wins = regime_trades["PnL"] > 0
+        trade_returns = regime_trades["ReturnPct"].astype(float) * 100.0
+
+        regime_metrics[regime] = {
+            "trades": int(n_trades),
+            "trade_share": round(n_trades / total_trades, 4),
+            "pnl": round(pnl, 2),
+            "return_pct": round((pnl / INITIAL_CASH) * 100.0, 4),
+            "win_rate": round(float(wins.mean() * 100.0), 4),
+            "avg_trade_return_pct": round(float(trade_returns.mean()), 4),
+            "total_trade_return_pct": round(float(trade_returns.sum()), 4),
+        }
+
+    return regime_metrics
 
 
 # ─────────────────────────────────────────────────────────────
@@ -172,6 +231,7 @@ def run_backtest(
             "max_drawdown": round(max_dd, 4),
             "n_trades":     n_trades,
             "win_rate":     round(win_rate, 4),
+            "regime_metrics": _trade_metrics_by_regime(stats, df),
         }
 
     except Exception as e:
