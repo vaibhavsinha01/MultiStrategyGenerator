@@ -1,8 +1,12 @@
-config.py
 .env
-requirements.txt
-/data
-/results
+
+/data/
+/results/
+
 users.db
 test.ipynb
-/_pycache_
+
+__pycache__/
+*.pyc
+
+config.py 
