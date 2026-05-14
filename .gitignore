@@ -1,6 +1,0 @@
-.env
-/data/
-test.ipynb
-__pycache__/
-*.pyc
-config.py 
