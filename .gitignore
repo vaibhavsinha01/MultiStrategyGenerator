@@ -1,12 +1,6 @@
 .env
-
 /data/
-/results/
-
-users.db
 test.ipynb
-
 __pycache__/
 *.pyc
-
 config.py 
