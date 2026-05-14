@@ -45,8 +45,8 @@ ROOT         = Path(__file__).resolve().parent
 DATA_DIR     = ROOT / "data"
 RESULTS_DIR  = ROOT / "results"
 DASHBOARD_DIR = ROOT / "dashboard"
-PORT         = 8731
-HOST         = "127.0.0.1"
+PORT         = 10000
+HOST         = "0.0.0.0"
 AUTH_DB_PATH = ROOT / "users.db"
 
 DATA_RE = re.compile(r"(?P<symbol>[a-z]+usd)_(?P<timeframe>[^.]+)\.csv$", re.IGNORECASE)
