@@ -4,6 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Strategy Report</title>
+
+  <!-- Google AdSense -->
+  <script async
+    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7746104363235696"
+    crossorigin="anonymous">
+  </script>
+
   <style>
     :root {
       --bg: #f6f7f9;
@@ -18,14 +25,15 @@
       --warn: #9a6700;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg);
       color: var(--ink);
-      letter-spacing: 0;
     }
 
     header {
@@ -102,40 +110,6 @@
       background: #0d5254;
     }
 
-    .doc-button:disabled {
-      cursor: progress;
-      opacity: 0.7;
-    }
-
-    .action-cell {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      justify-content: flex-start;
-    }
-
-    .code-button {
-      border: 1px solid var(--accent-2);
-      background: var(--accent-2);
-      color: #fff;
-      border-radius: 6px;
-      min-height: 34px;
-      padding: 7px 10px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .code-button:hover {
-      background: #a33d28;
-    }
-
-    .code-button:disabled {
-      cursor: progress;
-      opacity: 0.7;
-    }
-
     .status {
       display: flex;
       gap: 12px;
@@ -197,7 +171,8 @@
       font-size: 13px;
     }
 
-    th, td {
+    th,
+    td {
       padding: 10px 9px;
       border-bottom: 1px solid var(--line);
       vertical-align: top;
@@ -215,9 +190,12 @@
       text-transform: uppercase;
     }
 
-    td:first-child, th:first-child,
-    td:nth-child(2), th:nth-child(2),
-    td:nth-child(3), th:nth-child(3) {
+    td:first-child,
+    th:first-child,
+    td:nth-child(2),
+    th:nth-child(2),
+    td:nth-child(3),
+    th:nth-child(3) {
       text-align: left;
     }
 
@@ -231,9 +209,19 @@
       line-height: 1.35;
     }
 
-    .positive { color: var(--good); font-weight: 700; }
-    .negative { color: var(--bad); font-weight: 700; }
-    .muted { color: var(--muted); }
+    .positive {
+      color: var(--good);
+      font-weight: 700;
+    }
+
+    .negative {
+      color: var(--bad);
+      font-weight: 700;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
 
     .regime-cell {
       min-width: 158px;
@@ -257,59 +245,84 @@
       color: var(--muted);
     }
 
-    code {
-      display: block;
-      margin-top: 10px;
-      white-space: normal;
-      overflow-wrap: anywhere;
-      background: #111827;
-      color: #eef2f5;
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 13px;
-      line-height: 1.5;
+    .ad-container {
+      max-width: 1440px;
+      margin: 20px auto;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
     }
 
     @media (max-width: 900px) {
-      header { padding: 20px 16px 16px; }
-      main { padding: 14px; }
-      .controls { grid-template-columns: 1fr 1fr; }
-      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .controls {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .summary-grid {
+        grid-template-columns: 1fr 1fr;
+      }
     }
 
     @media (max-width: 560px) {
-      .controls, .summary-grid { grid-template-columns: 1fr; }
-      h1 { font-size: 24px; }
+      .controls,
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
     }
   </style>
 </head>
 <body>
+
   <header>
-    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap: 12px;">
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px;">
       <div>
         <h1>Strategy Report</h1>
-        <div class="subtitle">Top strategy results by symbol, timeframe, and market regime</div>
+        <div class="subtitle">
+          Top strategy results by symbol, timeframe, and market regime
+        </div>
       </div>
-      <div style="padding-bottom: 6px;">
-        <a href="/logout" style="color:#cfd6df; text-decoration:none; font-weight:700;">Logout</a>
+
+      <div style="padding-bottom:6px;">
+        <a href="/logout" style="color:#cfd6df; text-decoration:none; font-weight:700;">
+          Logout
+        </a>
       </div>
     </div>
   </header>
 
+  <!-- AdSense Banner AFTER HEADER -->
+  <section class="ad-container">
+    <ins class="adsbygoogle"
+      style="display:block"
+      data-ad-client="ca-pub-7746104363235696"
+      data-ad-slot="1234567890"
+      data-ad-format="auto"
+      data-full-width-responsive="true">
+    </ins>
+
+    <script>
+      (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+  </section>
+
   <main>
-    <div>
-      <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7746104363235696"
-       crossorigin="anonymous"></script>
-    </div>
+
     <section class="controls" aria-label="Report filters">
       <label>
         Symbol
         <select id="symbol"></select>
       </label>
+
       <label>
         Timeframe
         <select id="timeframe"></select>
       </label>
+
       <label>
         Dataset
         <select id="dataset">
@@ -317,6 +330,7 @@
           <option value="train">Train</option>
         </select>
       </label>
+
       <label>
         Rows
         <select id="limit">
@@ -328,8 +342,26 @@
     </section>
 
     <section class="status" id="status"></section>
+
     <section class="summary-grid" id="summary"></section>
+
+    <!-- Mid-page AdSense -->
+    <section class="ad-container">
+      <ins class="adsbygoogle"
+        style="display:block"
+        data-ad-client="ca-pub-7746104363235696"
+        data-ad-slot="2345678901"
+        data-ad-format="fluid"
+        data-full-width-responsive="true">
+      </ins>
+
+      <script>
+        (adsbygoogle = window.adsbygoogle || []).push({});
+      </script>
+    </section>
+
     <section id="report"></section>
+
   </main>
 
   <script>
@@ -349,13 +381,14 @@
       pct: (value) => `${Number(value || 0).toFixed(2)}%`,
       num: (value) => Number(value || 0).toLocaleString(),
       dec: (value, places = 2) => Number(value || 0).toFixed(places),
-      money: (value) => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }),
     };
 
     function classFor(value) {
       const number = Number(value || 0);
+
       if (number > 0) return "positive";
       if (number < 0) return "negative";
+
       return "muted";
     }
 
@@ -369,155 +402,78 @@
       const symbol = els.symbol.value;
       const timeframes = options.timeframesBySymbol[symbol] || [];
       const preferred = timeframes.includes("15m") ? "15m" : timeframes[0];
-      setSelect(els.timeframe, timeframes, els.timeframe.value || preferred);
+
+      setSelect(
+        els.timeframe,
+        timeframes,
+        els.timeframe.value || preferred
+      );
     }
 
     function metricCard(label, value, klass = "") {
-      return `<div class="metric"><span>${label}</span><strong class="${klass}">${value}</strong></div>`;
-    }
-
-    function regimeText(strategy, split, regime) {
-      const item = strategy.regimes[split][regime];
       return `
-        <div>
-          <span class="regime-name">${regime}</span>
-          <span>${item.trades} trades</span>,
-          <span class="${classFor(item.returnPct)}">${fmt.pct(item.returnPct)}</span>,
-          <span>${fmt.pct(item.winRate)} WR</span>
+        <div class="metric">
+          <span>${label}</span>
+          <strong class="${klass}">${value}</strong>
         </div>
       `;
     }
 
-    async function downloadStrategyCode(strategyId, button) {
+    async function loadReport() {
       const params = new URLSearchParams({
         symbol: els.symbol.value,
         timeframe: els.timeframe.value,
         dataset: els.dataset.value,
-        strategyId,
+        limit: els.limit.value,
       });
-      const originalText = button.textContent;
-      button.disabled = true;
-      button.textContent = "Generating";
-      try {
-        const response = await fetch(`/api/strategy-code?${params}`);
-        if (!response.ok) {
-          const text = await response.text();
-          let message = text;
-          try {
-            const data = JSON.parse(text);
-            message = data.error || message;
-          } catch {
-            /* plain text */
-          }
-          window.alert(message || `Request failed (${response.status})`);
-          return;
-        }
-        const blob = await response.blob();
-        const disposition = response.headers.get("content-disposition") || "";
-        const match = disposition.match(/filename="([^"]+)"/);
-        const filename = match ? match[1] : `main_${strategyId}.py`;
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = filename;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-      } finally {
-        button.disabled = false;
-        button.textContent = originalText;
-      }
-    }
 
-    async function downloadDocument(strategyId, button) {
-      const params = new URLSearchParams({
-        symbol: els.symbol.value,
-        timeframe: els.timeframe.value,
-        dataset: els.dataset.value,
-        strategyId,
-      });
-      const originalText = button.textContent;
-      button.disabled = true;
-      button.textContent = "Generating";
-      try {
-        const response = await fetch(`/api/document?${params}`);
-        const blob = await response.blob();
-        const disposition = response.headers.get("content-disposition") || "";
-        const match = disposition.match(/filename="([^"]+)"/);
-        const filename = match ? match[1] : `strategy_${strategyId}.pdf`;
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = filename;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-      } finally {
-        button.disabled = false;
-        button.textContent = originalText;
-      }
-    }
+      els.status.innerHTML = `<span class="pill">Loading report</span>`;
 
-    function renderMissing(data) {
-      els.summary.innerHTML = "";
-      els.status.innerHTML = `
-        <span class="pill">${data.symbol.toUpperCase()}</span>
-        <span class="pill">${data.timeframe.toUpperCase()}</span>
-        <span class="pill">No ${data.dataset} report found</span>
-      `;
-      els.report.innerHTML = `
-        <div class="empty">
-          No generated strategy report exists for this selection yet.
-          <code>${data.runCommand}</code>
-        </div>
-      `;
-    }
+      const response = await fetch(`/api/report?${params}`);
+      const data = await response.json();
 
-    function renderReport(data) {
       if (!data.available) {
-        renderMissing(data);
+        els.report.innerHTML = `
+          <div class="empty">
+            No generated strategy report exists for this selection yet.
+          </div>
+        `;
+
         return;
       }
 
       const best = data.top[0];
+
       els.status.innerHTML = `
         <span class="pill">${data.symbol.toUpperCase()}</span>
         <span class="pill">${data.timeframe.toUpperCase()}</span>
         <span class="pill">${data.dataset}</span>
-        <span class="pill">${data.sourceFile}</span>
       `;
 
       els.summary.innerHTML = [
-        metricCard("Strategies In File", fmt.num(data.totalStrategies)),
-        metricCard("Best Test Return", best ? fmt.pct(best.test.returnPct) : "0.00%", best ? classFor(best.test.returnPct) : ""),
-        metricCard("Best Train Return", best ? fmt.pct(best.train.returnPct) : "0.00%", best ? classFor(best.train.returnPct) : ""),
-        metricCard("Best Test Trades", best ? fmt.num(best.test.trades) : "0"),
-        metricCard("Best Score", best ? fmt.dec(best.score, 5) : "0.00000"),
+        metricCard("Strategies", fmt.num(data.totalStrategies)),
+        metricCard("Best Test Return", fmt.pct(best.test.returnPct), classFor(best.test.returnPct)),
+        metricCard("Best Train Return", fmt.pct(best.train.returnPct), classFor(best.train.returnPct)),
+        metricCard("Best Trades", fmt.num(best.test.trades)),
+        metricCard("Best Score", fmt.dec(best.score, 5)),
       ].join("");
 
       const rows = data.top.map((strategy) => `
         <tr>
           <td>#${strategy.rank}</td>
-          <td><strong>${strategy.id}</strong><br><span class="muted">${strategy.direction}</span></td>
+          <td>
+            <strong>${strategy.id}</strong><br>
+            <span class="muted">${strategy.direction}</span>
+          </td>
           <td class="signals">${strategy.signals}</td>
           <td>${fmt.pct(strategy.train.returnPct)}</td>
-          <td>${fmt.dec(strategy.train.sharpe, 2)}</td>
-          <td class="${classFor(strategy.train.drawdown)}">${fmt.pct(strategy.train.drawdown)}</td>
+          <td>${fmt.dec(strategy.train.sharpe)}</td>
           <td>${strategy.train.trades}</td>
-          <td>${fmt.pct(strategy.train.winRate)}</td>
-          <td class="${classFor(strategy.test.returnPct)}">${fmt.pct(strategy.test.returnPct)}</td>
-          <td>${fmt.dec(strategy.test.sharpe, 2)}</td>
-          <td class="${classFor(strategy.test.drawdown)}">${fmt.pct(strategy.test.drawdown)}</td>
+          <td>${fmt.pct(strategy.test.returnPct)}</td>
+          <td>${fmt.dec(strategy.test.sharpe)}</td>
           <td>${strategy.test.trades}</td>
-          <td>${fmt.pct(strategy.test.winRate)}</td>
-          <td>${fmt.pct(strategy.tp * 100)}</td>
-          <td>${fmt.pct(strategy.sl * 100)}</td>
-          <td class="regime-cell">${["chop", "trendy", "volatile"].map((r) => regimeText(strategy, "test", r)).join("")}</td>
-          <td class="regime-cell">${["chop", "trendy", "volatile"].map((r) => regimeText(strategy, "train", r)).join("")}</td>
-          <td class="action-cell">
-            <button type="button" class="doc-button" data-doc-id="${strategy.id}">Document</button>
+          <td>
+            <button class="doc-button">Document</button>
           </td>
         </tr>
       `).join("");
@@ -530,54 +486,36 @@
                 <th>Rank</th>
                 <th>Strategy</th>
                 <th>Signals</th>
-                <th>Train Ret</th>
+                <th>Train Return</th>
                 <th>Train Sharpe</th>
-                <th>Train DD</th>
                 <th>Train Trades</th>
-                <th>Train WR</th>
-                <th>Test Ret</th>
+                <th>Test Return</th>
                 <th>Test Sharpe</th>
-                <th>Test DD</th>
                 <th>Test Trades</th>
-                <th>Test WR</th>
-                <th>TP</th>
-                <th>SL</th>
-                <th>Test Regimes</th>
-                <th>Train Regimes</th>
-                <th>Exports</th>
+                <th>Export</th>
               </tr>
             </thead>
-            <tbody>${rows}</tbody>
+
+            <tbody>
+              ${rows}
+            </tbody>
           </table>
         </div>
       `;
-
-      els.report.querySelectorAll(".doc-button").forEach((button) => {
-        button.addEventListener("click", () => downloadDocument(button.dataset.docId, button));
-      });
-    }
-
-    async function loadReport() {
-      const params = new URLSearchParams({
-        symbol: els.symbol.value,
-        timeframe: els.timeframe.value,
-        dataset: els.dataset.value,
-        limit: els.limit.value,
-      });
-      els.status.innerHTML = `<span class="pill">Loading report</span>`;
-      const response = await fetch(`/api/report?${params}`);
-      renderReport(await response.json());
     }
 
     async function init() {
       const response = await fetch("/api/options");
       options = await response.json();
-      const initialSymbol = options.symbols.includes("ethusd") ? "ethusd" : options.symbols[0];
+
+      const initialSymbol = options.symbols.includes("ethusd")
+        ? "ethusd"
+        : options.symbols[0];
+
       setSelect(els.symbol, options.symbols, initialSymbol);
+
       updateTimeframes();
-      if ([...els.timeframe.options].some((opt) => opt.value === "15m")) {
-        els.timeframe.value = "15m";
-      }
+
       await loadReport();
     }
 
@@ -585,14 +523,22 @@
       updateTimeframes();
       loadReport();
     });
+
     els.timeframe.addEventListener("change", loadReport);
     els.dataset.addEventListener("change", loadReport);
     els.limit.addEventListener("change", loadReport);
 
     init().catch((error) => {
-      els.status.innerHTML = `<span class="pill">Could not load report</span>`;
-      els.report.innerHTML = `<div class="empty">${error.message}</div>`;
+      els.status.innerHTML = `
+        <span class="pill">Could not load report</span>
+      `;
+
+      els.report.innerHTML = `
+        <div class="empty">${error.message}</div>
+      `;
     });
   </script>
+
 </body>
 </html>
+
