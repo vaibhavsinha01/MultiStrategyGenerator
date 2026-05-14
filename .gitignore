@@ -1,5 +1,8 @@
 config.py
 .env
 requirements.txt
-/data/
-/results/
+/data
+/results
+users.db
+test.ipynb
+/_pycache_
