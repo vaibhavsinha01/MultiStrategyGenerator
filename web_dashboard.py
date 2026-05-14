@@ -45,7 +45,7 @@ ROOT         = Path(__file__).resolve().parent
 DATA_DIR     = ROOT / "data"
 RESULTS_DIR  = ROOT / "results"
 DASHBOARD_DIR = ROOT / "dashboard"
-PORT         = 8767
+PORT         = 8731
 AUTH_DB_PATH = ROOT / "users.db"
 
 DATA_RE = re.compile(r"(?P<symbol>[a-z]+usd)_(?P<timeframe>[^.]+)\.csv$", re.IGNORECASE)
@@ -628,7 +628,7 @@ def main() -> None:
 
     uvicorn.run(
         app,
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=int(os.environ.get("PORT", PORT)),
         log_level="info",
     )
