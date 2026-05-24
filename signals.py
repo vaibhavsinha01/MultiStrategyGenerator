@@ -90,8 +90,8 @@ def s12(df: pd.DataFrame) -> pd.Series:
 # ── momentum / oscillator signals ────────────────────────────────────────────
 
 def s13(df: pd.DataFrame) -> pd.Series:
-    """RSI-14 below 35  →  oversold, potential reversal long."""
-    return df["rsi_14"] < 35
+    """RSI-14 below 30 -> oversold, potential reversal long."""
+    return df["rsi_14"] < 30
 
 
 def s14(df: pd.DataFrame) -> pd.Series:
@@ -147,6 +147,41 @@ def s23(df: pd.DataFrame) -> pd.Series:
 def s24(df: pd.DataFrame) -> pd.Series:
     """TSI positive  →  true strength bullish."""
     return df["tsi"] > 0
+
+
+def s102(df: pd.DataFrame) -> pd.Series:
+    """RSI-14 above 70 -> overbought, potential reversal short."""
+    return df["rsi_14"] > 70
+
+
+def s103(df: pd.DataFrame) -> pd.Series:
+    """Stochastic %K above 75 -> overbought."""
+    return df["stoch_k"] > 75
+
+
+def s104(df: pd.DataFrame) -> pd.Series:
+    """Stochastic RSI %K above 80 -> deeply overbought."""
+    return df["stoch_rsi_k"] > 80
+
+
+def s105(df: pd.DataFrame) -> pd.Series:
+    """CCI above 100 -> overbought on CCI."""
+    return df["cci"] > 100
+
+
+def s106(df: pd.DataFrame) -> pd.Series:
+    """Williams %R above -20 -> overbought."""
+    return df["williams_r"] > -20
+
+
+def s107(df: pd.DataFrame) -> pd.Series:
+    """MFI above 75 -> money flow overbought."""
+    return df["mfi"] > 75
+
+
+def s108(df: pd.DataFrame) -> pd.Series:
+    """Price near upper Bollinger Band (BB %B > 0.85) -> potential mean-reversion short."""
+    return df["bb_pct"] > 0.85
 
 
 # ── volatility signals ────────────────────────────────────────────────────────
@@ -688,7 +723,7 @@ SIGNAL_REGISTRY: dict[str, dict] = {
     "s10": {"fn": s10, "desc": "UT bar_buy",                "group": "ut"},
     "s11": {"fn": s11, "desc": "RF trend bullish",          "group": "rf"},
     "s12": {"fn": s12, "desc": "ADX>20 & +DI>-DI",          "group": "adx"},
-    "s13": {"fn": s13, "desc": "RSI14 < 35",                "group": "rsi"},
+    "s13": {"fn": s13, "desc": "RSI14 < 30",                "group": "rsi"},
     "s14": {"fn": s14, "desc": "RSI14 > 50",                "group": "rsi"},
     "s15": {"fn": s15, "desc": "RSI 55-75",                 "group": "rsi"},
     "s16": {"fn": s16, "desc": "Stoch %K < 25",             "group": "stoch"},
@@ -700,6 +735,13 @@ SIGNAL_REGISTRY: dict[str, dict] = {
     "s22": {"fn": s22, "desc": "WT oversold",               "group": "wt_signal"},
     "s23": {"fn": s23, "desc": "UltOsc < 30",               "group": "ultosc"},
     "s24": {"fn": s24, "desc": "TSI > 0",                   "group": "tsi"},
+    "s102": {"fn": s102, "desc": "RSI14 > 70",              "group": "rsi"},
+    "s103": {"fn": s103, "desc": "Stoch %K > 75",           "group": "stoch"},
+    "s104": {"fn": s104, "desc": "StochRSI %K > 80",        "group": "stochrsi"},
+    "s105": {"fn": s105, "desc": "CCI > 100",               "group": "cci"},
+    "s106": {"fn": s106, "desc": "Williams%R > -20",        "group": "williams"},
+    "s107": {"fn": s107, "desc": "MFI > 75",                "group": "mfi"},
+    "s108": {"fn": s108, "desc": "BB%B > 0.85",             "group": "bb"},
     "s25": {"fn": s25, "desc": "BB%B < 0.15",               "group": "bb"},
     "s26": {"fn": s26, "desc": "BB squeeze",                "group": "squeeze"},
     "s27": {"fn": s27, "desc": "ATR expanding",             "group": "atr"},
@@ -785,36 +827,40 @@ SIGNAL_REGISTRY: dict[str, dict] = {
 
 SIGNALS = SIGNAL_REGISTRY
 
-# You NEED to define direction — do it manually (important for quality)
+# Pools are strategy-compatible, not just raw indicator color.
+# Bull strategies can use bullish continuation plus oversold mean-reversion signals.
+# Bear strategies can use bearish continuation plus overbought mean-reversion signals.
 
 BULL_SIGNALS = [
+    # trend / continuation long signals
     "s1","s2","s3","s4","s5","s6","s7","s8","s9","s10","s11","s12",
     "s14","s15","s21","s24","s30","s32","s33","s34","s35","s36",
     "s38","s39","s40","s41","s42","s43","s44",
+    # oversold / mean-reversion long signals
+    "s13","s16","s17","s18","s19","s20","s22","s23","s25","s29","s31",
     # RSI Gainzy — bullish
     "s45",  # strong bull (light_green)
     "s46",  # any bull regime
     "s47",  # bull flip (entry trigger)
     "s48",  # momentum / blue zone (confirmation)
+    "s52",  # not bearish guard
     "s53","s54","s55","s58","s59","s60","s63","s64","s65","s68","s69",
     "s70","s73","s74","s75","s78","s79","s82","s83","s84","s87","s88","s91",
     "s92","s93","s94","s95","s96"
 ]
 
 BEAR_SIGNALS = [
-    # inverse / mean reversion / overbought-type signals
-    "s13","s16","s17","s18","s19","s20","s22","s23","s25","s28",
-    "s29","s31","s37",
+    # overbought / mean-reversion short signals
+    "s28","s102","s103","s104","s105","s106","s107","s108",
     # RSI Gainzy — bearish
     "s49",  # strong bear (pink)
     "s50",  # any bear regime
     "s51",  # bear flip (entry trigger)
-    "s52",  # not-bearish guard (permissive bear filter)
     "s56","s57","s61","s62","s66","s67","s71","s72","s76",
     "s77","s80","s81","s85","s86","s89","s90",
     "s97","s98","s99", "s100","s101"
 ]
 
 NEUTRAL_SIGNALS = [
-    "s26","s27"  # squeeze, volatility expansion
+    "s26","s27","s37"  # squeeze, volatility expansion, inside bar
 ]

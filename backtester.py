@@ -59,19 +59,16 @@ def _build_strategy_class(strat_dict: dict) -> type:
 
     def next(self):
         i = len(self.data) - 1
-        lookback = 1
-
-        if i < lookback:
+        if i < 1:
             return
 
-        # Count how many signals fired within the lookback window
+        # All selected strategy signals must be true on the same candle.
         n_active = sum(
-            any(self._signals[k][j] for j in range(i - lookback + 1, i + 1))
+            bool(self._signals[k][i])
             for k in signal_keys
         )
 
-        threshold = max(2, int(len(signal_keys) * 0.75))
-        entry = n_active >= threshold
+        entry = n_active == len(signal_keys)
 
         if not entry:
             return

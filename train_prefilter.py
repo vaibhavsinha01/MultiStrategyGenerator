@@ -1,5 +1,8 @@
 """
-CPU-side entry prefilter (matches backtester lookback=1 + signal threshold).
+CPU-side entry prefilter.
+
+Matches backtester entry logic: all selected strategy signals must be true
+on the same candle.
 
 Used in the main process only (not in worker processes).
 """
@@ -52,7 +55,7 @@ def numpy_entry_prefilter(
         for i, s in enumerate(batch):
             sigs = s["signals"]
             n_s = len(sigs)
-            thresh[i, 0] = max(2, int(n_s * 0.75))
+            thresh[i, 0] = n_s
             if not sigs:
                 continue
             if not all(kk in key_to_idx for kk in sigs):

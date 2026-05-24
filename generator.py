@@ -1,118 +1,113 @@
 """
 generator.py
-────────────
-Generates random but valid trading strategies as dicts.
+
+Generate random but valid trading strategies.
 
 Validity rules
-  1. 2-3 entry conditions combined with AND
-  2. All entry signals must be the same direction (bull or bear)
-     neutral signals (vol spike, squeeze, ATR) may be added as a
-     3rd condition to either direction.
-  3. No two signals from the same contradiction group in one strategy.
-  4. TP: 1%-2%,  SL: 0.5%-1%
-  5. Duplicate detection: same frozenset of signals → skip.
+  1. Use 2, 3, or 4 entry conditions.
+  2. Entry signals must be compatible with the strategy side.
+     Bull strategies can include bullish continuation or oversold
+     mean-reversion signals; bear strategies can include bearish continuation
+     or overbought mean-reversion signals.
+  3. Neutral signals may be added to either direction.
+  4. No two signals from the same contradiction group in one strategy.
+  5. TP/SL ranges are kept intraday-friendly so trades can close and re-enter.
 """
 
 import random
 import uuid
+
 from signals import SIGNALS, BULL_SIGNALS, BEAR_SIGNALS, NEUTRAL_SIGNALS
 
+
 VALID_SIGNALS = set(SIGNALS.keys())
+
+SIGNAL_COUNT_WEIGHTS = ((2, 0.10), (3, 0.70), (4, 0.20))
+NEUTRAL_SLOT_PROBABILITY = 0.30
+QUALITY_POOL_PROBABILITY = 0.80
+
+TP_RANGE = (0.006, 0.040)
+SL_RANGE = (0.004, 0.014)
+MIN_REWARD_RISK = 1.25
 
 QUALITY_BULL = [s for s in BULL_SIGNALS if s in VALID_SIGNALS]
 QUALITY_BEAR = [s for s in BEAR_SIGNALS if s in VALID_SIGNALS]
 QUALITY_NEUTRAL = [s for s in NEUTRAL_SIGNALS if s in VALID_SIGNALS]
 
 
-def _pick_pool(direction: str, quality_only: bool) -> list:
+def _pick_signal_count() -> int:
+    counts, weights = zip(*SIGNAL_COUNT_WEIGHTS, strict=True)
+    return random.choices(counts, weights=weights)[0]
+
+
+def _pick_pool(direction: str, quality_only: bool) -> list[str]:
     if quality_only:
         return QUALITY_BULL if direction == "bull" else QUALITY_BEAR
     return BULL_SIGNALS if direction == "bull" else BEAR_SIGNALS
 
+
 def _valid_combo(selected: list[str]) -> bool:
     """Return True if no two selected signals share a contradiction group."""
-    # groups = [SIGNALS[s]["group"] for s in selected]
     groups = [SIGNALS[s]["group"] for s in selected]
     return len(groups) == len(set(groups))
 
 
+def _neutral_candidates(selected: list[str], quality_only: bool) -> list[str]:
+    used_groups = {SIGNALS[s]["group"] for s in selected}
+    pool = QUALITY_NEUTRAL if quality_only else NEUTRAL_SIGNALS
+    return [s for s in pool if SIGNALS[s]["group"] not in used_groups]
+
+
+def _pick_risk() -> tuple[float, float]:
+    tp = round(random.uniform(*TP_RANGE), 10)
+    sl = round(random.uniform(*SL_RANGE), 10)
+    return tp, sl
+
+
 def generate_one(direction: str | None = None, max_attempts: int = 200) -> dict | None:
-    """
-    Generate one valid strategy dict.
-
-    Returns None if a valid combo cannot be found within max_attempts.
-
-    Strategy dict schema
-    ────────────────────
-    {
-        "id"        : str  (uuid4 short)
-        "direction" : "bull" | "bear"
-        "signals"   : [str, ...]   e.g. ["s1", "s21", "s77"]
-        "n_signals" : int  (2 or 3)
-        "tp"        : float  (e.g. 0.015)
-        "sl"        : float  (e.g. 0.007)
-    }
-    """
+    """Generate one valid strategy dict, or None if no valid combo is found."""
     if direction is None:
         direction = random.choice(["bull", "bear"])
 
-    n_signals = random.choices([2, 3, 4, 5], weights=[0.20, 0.40, 0.25, 0.15])[0] # initial params are 2,3 and 0.45,0.55
+    n_signals = _pick_signal_count()
 
     for _ in range(max_attempts):
-        # 80% quality pool, 20% full pool
-        use_quality = random.random() < 0.80
+        use_quality = random.random() < QUALITY_POOL_PROBABILITY
         pool = _pick_pool(direction, use_quality)
 
-        # Sample the directional signals
-        n_dir = n_signals if random.random() < 0.7 else n_signals - 1
-        n_dir = max(2, n_dir)                       # always at least 2 directional
+        wants_neutral = n_signals > 2 and random.random() < NEUTRAL_SLOT_PROBABILITY
+        n_directional = n_signals - 1 if wants_neutral else n_signals
 
-        if len(pool) < n_dir:
-            continue
-        # selected = random.sample(pool, n_dir)
-        valid_keys = VALID_SIGNALS
-
-        selected = random.sample(pool, n_dir)
-
-        # ✅ VALIDATION HERE
-        if not all(s in valid_keys for s in selected):
+        if len(pool) < n_directional:
             continue
 
-        # Optionally add a neutral signal as the 3rd condition
-        if n_signals == 3 and n_dir == 2:
-            neutral_pool = QUALITY_NEUTRAL if use_quality else NEUTRAL_SIGNALS
-            neutral_pool = [s for s in neutral_pool
-                            if SIGNALS[s]["group"] not in
-                            [SIGNALS[x]["group"] for x in selected]]
-            if neutral_pool:
-                # selected.append(random.choice(neutral_pool))
-                selected.append(random.choice(neutral_pool))
+        selected = random.sample(pool, n_directional)
+        if not all(s in VALID_SIGNALS for s in selected):
+            continue
 
-                # ✅ VALIDATION AGAIN (important)
-                if not all(s in valid_keys for s in selected):
-                    continue
-            else:
-                continue                            # can't find a valid neutral — retry
+        if wants_neutral:
+            neutral_pool = _neutral_candidates(selected, use_quality)
+            if not neutral_pool:
+                continue
+            selected.append(random.choice(neutral_pool))
 
         if not _valid_combo(selected):
             continue
 
-        tp = round(random.uniform(0.018, 0.080), 10)   # 0.5% – 4.0% # changed and initial params were 0.010-0.020 , 4
-        sl = round(random.uniform(0.008, 0.020), 10)   # 0.2% – 2.0% # changed and initial params were 0.005-0.010 , 4
-
-        if tp/sl < 1.5:
+        tp, sl = _pick_risk()
+        if tp / sl < MIN_REWARD_RISK:
             continue
 
         return {
-            "id":        uuid.uuid4().hex[:8],
+            "id": uuid.uuid4().hex[:8],
             "direction": direction,
-            "signals":   selected,
+            "signals": selected,
             "n_signals": len(selected),
-            "tp":        tp,
-            "sl":        sl,
+            "tp": tp,
+            "sl": sl,
         }
 
-    return None   # failed to generate a valid combo
+    return None
 
 
 def generate_strategies(
@@ -120,24 +115,12 @@ def generate_strategies(
     bull_ratio: float = 0.5,
     seed: int | None = 42,
 ) -> list[dict]:
-    """
-    Generate `n` unique valid strategies.
-
-    Parameters
-    ----------
-    n          : total strategies to generate
-    bull_ratio : fraction that are long strategies
-    seed       : random seed for reproducibility (None = random)
-
-    Returns
-    -------
-    List of strategy dicts (unique by signal frozenset + direction).
-    """
+    """Generate n unique valid strategies."""
     if seed is not None:
         random.seed(seed)
 
     strategies: list[dict] = []
-    seen: set[frozenset] = set()            # deduplication key
+    seen: set[frozenset] = set()
 
     n_bull = int(n * bull_ratio)
     n_bear = n - n_bull
@@ -145,7 +128,7 @@ def generate_strategies(
     for direction, count in [("bull", n_bull), ("bear", n_bear)]:
         attempts = 0
         generated = 0
-        max_total_attempts = count * 8     # safety ceiling
+        max_total_attempts = count * 12
 
         while generated < count and attempts < max_total_attempts:
             attempts += 1
@@ -161,6 +144,5 @@ def generate_strategies(
             strategies.append(strat)
             generated += 1
 
-    # Shuffle so bull/bear aren't batched
     random.shuffle(strategies)
     return strategies

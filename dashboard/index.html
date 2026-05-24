@@ -387,7 +387,8 @@
 
     function updateTimeframes() {
       const symbol = els.symbol.value;
-      const timeframes = options.timeframesBySymbol[symbol] || [];
+      const timeframes = (options.timeframesBySymbol[symbol] || [])
+        .filter((timeframe) => !["1m", "5m"].includes(timeframe.toLowerCase()));
       const preferred = timeframes.includes("15m") ? "15m" : timeframes[0];
 
       setSelect(
@@ -528,4 +529,3 @@
 
 </body>
 </html>
-

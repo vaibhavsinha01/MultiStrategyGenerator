@@ -31,18 +31,19 @@ REGIME_METRIC_COLUMNS = (
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
 
-MIN_TRADES    =  0
-MAX_DRAWDOWN  = -100.0   # worse than -25% → reject
-MIN_WIN_RATE = 0
-MIN_RETURN = -100.0
+MIN_TRADES = 10
+MIN_TEST_TRADES = 3
+MAX_DRAWDOWN = -45.0
+MIN_WIN_RATE = 20.0
+MIN_RETURN = -25.0
 
 # ── 1. Filter ─────────────────────────────────────────────────────────────────
 
-def filter_metrics(metrics: dict) -> bool:
+def filter_metrics(metrics: dict, min_trades: int = MIN_TRADES) -> bool:
     if metrics is None:
         return False
 
-    cond1 = metrics["n_trades"]    >= MIN_TRADES
+    cond1 = metrics["n_trades"]    >= min_trades
     cond2 = metrics["max_drawdown"] >= MAX_DRAWDOWN
     cond3 = metrics["win_rate"]     >= MIN_WIN_RATE
     cond4 = metrics["return_pct"]   >= MIN_RETURN
@@ -73,7 +74,11 @@ def rank_strategies(results: list[dict], top_n: int = 50) -> list[dict]:
     Each item in results is expected to have keys:
         strategy, metrics, score
     """
-    ranked = sorted(results, key=lambda x: x["score"], reverse=True)
+    ranked = sorted(
+        results,
+        key=lambda x: (x["score"], x["metrics"]["n_trades"]),
+        reverse=True,
+    )
     return ranked[:top_n]
 
 
@@ -95,9 +100,8 @@ def validate_on_test(
     """
     Re-run each top strategy on the test set.
 
-    A strategy passes validation if:
-      • It still meets filter thresholds on test data, OR
-      • Its test return is above consistency_threshold
+    A strategy passes validation if it meets the test trade-count/quality
+    thresholds and its test return is above consistency_threshold.
 
     Returns list of validated result dicts (with test_metrics added).
     """
@@ -109,9 +113,8 @@ def validate_on_test(
         if t_metrics is None:
             continue
 
-        # Consistency check: passes filter OR positive return
         passes = (
-            filter_metrics(t_metrics) or
+            filter_metrics(t_metrics, min_trades=MIN_TEST_TRADES) and
             t_metrics["return_pct"] > consistency_threshold
         )
         if not passes:
