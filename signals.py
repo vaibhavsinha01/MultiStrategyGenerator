@@ -693,6 +693,138 @@ def s101(df: pd.DataFrame) -> pd.Series:
     Faster bear filter for short entries within a bear swing. Direction: BEAR"""
     return df["smc_int_is_bear"].astype(bool)
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  ICT CONCEPTS SIGNALS  (s109 – s130)
+#  Columns produced by ict_concepts() in feature_engineer():
+#    ict_mss_bull, ict_mss_bear       – Market Structure Shift (reversal)
+#    ict_bos_bull, ict_bos_bear       – Break of Structure (continuation)
+#    ict_ms_trend                     – +1 bull / -1 bear
+#    ict_fvg_bull, ict_fvg_bear       – FVG detected on that bar
+#    ict_fvg_in_bull, ict_fvg_in_bear – price inside unmitigated FVG
+#    ict_ob_in_bull, ict_ob_in_bear   – price inside active OB zone
+#    ict_ob_bull_breaker              – bullish OB flipped to breaker
+#    ict_ob_bear_breaker              – bearish OB flipped to breaker
+#    ict_liq_buy_swept                – buyside liquidity taken (bull reversal)
+#    ict_liq_sell_swept               – sellside liquidity taken (bear reversal)
+#    ict_vim_bull, ict_vim_bear       – volume imbalance detected
+#    ict_displacement_up              – large bullish displacement candle
+#    ict_displacement_dn              – large bearish displacement candle
+#    ict_kz_ny, ict_kz_london_open    – killzone session active
+#    ict_kz_london_close, ict_kz_asian
+#    ict_price_in_nwog                – price inside New Week Opening Gap
+#    ict_price_in_ndog                – price inside New Day Opening Gap
+# ══════════════════════════════════════════════════════════════════════════════
+
+def s109(df: pd.DataFrame) -> pd.Series:
+    """ICT bullish MSS — close crossed above swing high reversing a downtrend.
+    High-conviction reversal; equivalent to Pine MSS bullish label. Direction: BULL"""
+    return df["ict_mss_bull"].astype(bool)
+
+def s110(df: pd.DataFrame) -> pd.Series:
+    """ICT bearish MSS — close crossed below swing low reversing an uptrend.
+    High-conviction reversal; equivalent to Pine MSS bearish label. Direction: BEAR"""
+    return df["ict_mss_bear"].astype(bool)
+
+def s111(df: pd.DataFrame) -> pd.Series:
+    """ICT bullish BOS — close broke above swing high in an existing uptrend (continuation).
+    Direction: BULL"""
+    return df["ict_bos_bull"].astype(bool)
+
+def s112(df: pd.DataFrame) -> pd.Series:
+    """ICT bearish BOS — close broke below swing low in an existing downtrend (continuation).
+    Direction: BEAR"""
+    return df["ict_bos_bear"].astype(bool)
+
+def s113(df: pd.DataFrame) -> pd.Series:
+    """ICT market structure trend bullish (ict_ms_trend == +1).
+    Broad regime filter; stays True for the whole bull phase. Direction: BULL"""
+    return df["ict_ms_trend"] == 1
+
+def s114(df: pd.DataFrame) -> pd.Series:
+    """ICT market structure trend bearish (ict_ms_trend == -1).
+    Broad regime filter; stays True for the whole bear phase. Direction: BEAR"""
+    return df["ict_ms_trend"] == -1
+
+def s115(df: pd.DataFrame) -> pd.Series:
+    """ICT bullish FVG detected — displacement candle left a gap above (low > high[2]).
+    Fires on the creation bar; momentum confirmation. Direction: BULL"""
+    return df["ict_fvg_bull"].astype(bool)
+
+def s116(df: pd.DataFrame) -> pd.Series:
+    """ICT price inside unmitigated bull FVG — mean-reversion demand zone long setup.
+    Direction: BULL"""
+    return df["ict_fvg_in_bull"].astype(bool)
+
+def s117(df: pd.DataFrame) -> pd.Series:
+    """ICT bearish FVG detected — displacement candle left a gap below (high < low[2]).
+    Fires on the creation bar; bearish momentum confirmation. Direction: BEAR"""
+    return df["ict_fvg_bear"].astype(bool)
+
+def s118(df: pd.DataFrame) -> pd.Series:
+    """ICT price inside unmitigated bear FVG — mean-reversion supply zone short setup.
+    Direction: BEAR"""
+    return df["ict_fvg_in_bear"].astype(bool)
+
+def s119(df: pd.DataFrame) -> pd.Series:
+    """ICT price touching bullish OB — low entered an active demand order block.
+    Institutional demand zone; Pine +OB buy alert equivalent. Direction: BULL"""
+    return df["ict_ob_in_bull"].astype(bool)
+
+def s120(df: pd.DataFrame) -> pd.Series:
+    """ICT bullish breaker block active — mitigated bull OB that flipped to support.
+    Used as confirmation that prior demand zone is now acting as support. Direction: BULL"""
+    return df["ict_ob_bull_breaker"].astype(bool)
+
+def s121(df: pd.DataFrame) -> pd.Series:
+    """ICT price touching bearish OB — high entered an active supply order block.
+    Institutional supply zone; Pine -OB sell alert equivalent. Direction: BEAR"""
+    return df["ict_ob_in_bear"].astype(bool)
+
+def s122(df: pd.DataFrame) -> pd.Series:
+    """ICT bearish breaker block active — mitigated bear OB that flipped to resistance.
+    Direction: BEAR"""
+    return df["ict_ob_bear_breaker"].astype(bool)
+
+def s123(df: pd.DataFrame) -> pd.Series:
+    """ICT buyside liquidity swept — clustered equal highs taken, closed back below.
+    Classic stop-hunt above resistance; strong long reversal setup. Direction: BULL"""
+    return df["ict_liq_buy_swept"].astype(bool)
+
+def s124(df: pd.DataFrame) -> pd.Series:
+    """ICT sellside liquidity swept — clustered equal lows taken, closed back above.
+    Classic stop-hunt below support; strong short reversal setup. Direction: BEAR"""
+    return df["ict_liq_sell_swept"].astype(bool)
+
+def s125(df: pd.DataFrame) -> pd.Series:
+    """ICT bullish volume imbalance — gap between current candle body and prior candle body (up).
+    Unfilled buying pressure; acts as support on retest. Direction: BULL"""
+    return df["ict_vim_bull"].astype(bool)
+
+def s126(df: pd.DataFrame) -> pd.Series:
+    """ICT bearish volume imbalance — gap between current candle body and prior candle body (down).
+    Unfilled selling pressure; acts as resistance on retest. Direction: BEAR"""
+    return df["ict_vim_bear"].astype(bool)
+
+def s127(df: pd.DataFrame) -> pd.Series:
+    """ICT bullish displacement — large-body bull candle with minimal wicks, above mean body size.
+    Signals strong institutional buying; Pine displacement UP shape equivalent. Direction: BULL"""
+    return df["ict_displacement_up"].astype(bool)
+
+def s128(df: pd.DataFrame) -> pd.Series:
+    """ICT bearish displacement — large-body bear candle with minimal wicks, above mean body size.
+    Signals strong institutional selling. Direction: BEAR"""
+    return df["ict_displacement_dn"].astype(bool)
+
+def s129(df: pd.DataFrame) -> pd.Series:
+    """ICT high-probability killzone active — NY or London Open session (peak liquidity windows).
+    Use as a time filter; avoid entries outside these windows. Direction: BULL/BEAR filter"""
+    return (df["ict_kz_ny"] | df["ict_kz_london_open"]).astype(bool)
+
+def s130(df: pd.DataFrame) -> pd.Series:
+    """ICT price inside New Week Opening Gap — unfilled gap between Friday close and Monday open.
+    Acts as a magnet; price tends to return to fill NWOG. Direction: NEUTRAL context"""
+    return df["ict_price_in_nwog"].astype(bool)
+
 # ── validation helper ──────────────────────────────────────────────────────────
 
 def validate_signals(df: pd.DataFrame):
@@ -821,6 +953,29 @@ SIGNAL_REGISTRY: dict[str, dict] = {
     "s99":  {"fn": s99,  "desc": "SMC swing bear regime",    "group": "smc_swing"},
     "s100": {"fn": s100, "desc": "SMC internal bear CHoCH",  "group": "smc_internal"},
     "s101": {"fn": s101, "desc": "SMC internal bear regime", "group": "smc_internal"},
+    # ── ICT Concepts signals ───────────────────────────────────────────────────
+    "s109": {"fn": s109, "desc": "ICT bullish MSS",            "group": "ict_structure"},
+    "s110": {"fn": s110, "desc": "ICT bearish MSS",            "group": "ict_structure"},
+    "s111": {"fn": s111, "desc": "ICT bullish BOS",            "group": "ict_structure"},
+    "s112": {"fn": s112, "desc": "ICT bearish BOS",            "group": "ict_structure"},
+    "s113": {"fn": s113, "desc": "ICT MS trend bull",          "group": "ict_structure"},
+    "s114": {"fn": s114, "desc": "ICT MS trend bear",          "group": "ict_structure"},
+    "s115": {"fn": s115, "desc": "ICT bull FVG detected",      "group": "ict_fvg"},
+    "s116": {"fn": s116, "desc": "ICT price in bull FVG",      "group": "ict_fvg"},
+    "s117": {"fn": s117, "desc": "ICT bear FVG detected",      "group": "ict_fvg"},
+    "s118": {"fn": s118, "desc": "ICT price in bear FVG",      "group": "ict_fvg"},
+    "s119": {"fn": s119, "desc": "ICT price in bull OB",       "group": "ict_ob"},
+    "s120": {"fn": s120, "desc": "ICT bull breaker block",     "group": "ict_ob"},
+    "s121": {"fn": s121, "desc": "ICT price in bear OB",       "group": "ict_ob"},
+    "s122": {"fn": s122, "desc": "ICT bear breaker block",     "group": "ict_ob"},
+    "s123": {"fn": s123, "desc": "ICT buyside liq swept",      "group": "ict_liquidity"},
+    "s124": {"fn": s124, "desc": "ICT sellside liq swept",     "group": "ict_liquidity"},
+    "s125": {"fn": s125, "desc": "ICT bull volume imbalance",  "group": "ict_vim"},
+    "s126": {"fn": s126, "desc": "ICT bear volume imbalance",  "group": "ict_vim"},
+    "s127": {"fn": s127, "desc": "ICT displacement up",        "group": "ict_displacement"},
+    "s128": {"fn": s128, "desc": "ICT displacement dn",        "group": "ict_displacement"},
+    "s129": {"fn": s129, "desc": "ICT killzone active",        "group": "ict_session"},
+    "s130": {"fn": s130, "desc": "ICT price in NWOG",          "group": "ict_session"},
 }
 
 # ── derived signal groups ─────────────────────────────────────────────
@@ -846,7 +1001,8 @@ BULL_SIGNALS = [
     "s52",  # not bearish guard
     "s53","s54","s55","s58","s59","s60","s63","s64","s65","s68","s69",
     "s70","s73","s74","s75","s78","s79","s82","s83","s84","s87","s88","s91",
-    "s92","s93","s94","s95","s96"
+    "s92","s93","s94","s95","s96",# ICT Concepts — bullish
+    "s109","s111","s113","s115","s116","s119","s120","s123","s125","s127","s129","s130",
 ]
 
 BEAR_SIGNALS = [
@@ -858,7 +1014,8 @@ BEAR_SIGNALS = [
     "s51",  # bear flip (entry trigger)
     "s56","s57","s61","s62","s66","s67","s71","s72","s76",
     "s77","s80","s81","s85","s86","s89","s90",
-    "s97","s98","s99", "s100","s101"
+    "s97","s98","s99", "s100","s101",# ICT Concepts — bearish
+    "s110","s112","s114","s117","s118","s121","s122","s124","s126","s128",
 ]
 
 NEUTRAL_SIGNALS = [

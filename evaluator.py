@@ -31,11 +31,11 @@ REGIME_METRIC_COLUMNS = (
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
 
-MIN_TRADES = 10
-MIN_TEST_TRADES = 3
-MAX_DRAWDOWN = -45.0
-MIN_WIN_RATE = 20.0
-MIN_RETURN = -25.0
+MIN_TRADES = 50
+MIN_TEST_TRADES = 10
+MAX_DRAWDOWN = -40.0
+MIN_WIN_RATE = 30.0
+MIN_RETURN = -10.0
 
 # ── 1. Filter ─────────────────────────────────────────────────────────────────
 
@@ -222,6 +222,7 @@ def save_results(
     results: list[dict],
     path: str = "strategy_results.csv",
     append: bool = False,
+    metadata: dict | None = None,
 ) -> pd.DataFrame:
     """
     Save results list to CSV and return as DataFrame.
@@ -231,12 +232,30 @@ def save_results(
     results : list of result dicts
     path    : output file path
     append  : if True and file exists, append without header
+    metadata: optional columns to add to every exported row
     """
     rows = [_flatten_result(r) for r in results]
     df   = pd.DataFrame(rows)
+    if metadata:
+        for key, value in reversed(list(metadata.items())):
+            df.insert(0, key, value)
 
-    mode   = "a" if (append and os.path.exists(path)) else "w"
-    header = not (append and os.path.exists(path))
+    file_exists = os.path.exists(path) and os.path.getsize(path) > 0
+    if append and file_exists:
+        existing = pd.read_csv(path)
+        new_columns = [col for col in df.columns if col not in existing.columns]
+        missing_columns = [col for col in existing.columns if col not in df.columns]
+        if new_columns or missing_columns:
+            for col in new_columns:
+                existing[col] = ""
+            for col in missing_columns:
+                df[col] = ""
+            columns = list(existing.columns)
+            existing.to_csv(path, index=False)
+            df = df[columns]
+
+    mode   = "a" if (append and file_exists) else "w"
+    header = not (append and file_exists)
     df.to_csv(path, mode=mode, header=header, index=False)
 
     return df
