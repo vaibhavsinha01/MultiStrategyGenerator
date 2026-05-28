@@ -14,12 +14,12 @@
 
   <style>
     :root {
-      --bg: #f6f7f9;
+      --bg: #07111f;
       --panel: #ffffff;
       --ink: #17202a;
       --muted: #667085;
       --line: #d8dde6;
-      --accent: #116466;
+      --accent: #38bdf8;
       --accent-2: #c84b31;
       --good: #0f7a4d;
       --bad: #b42318;
@@ -38,7 +38,7 @@
     }
 
     header {
-      background: #17202a;
+      background: #050b14;
       color: #fff;
       padding: 24px 28px 18px;
       border-bottom: 4px solid var(--accent);
@@ -61,6 +61,108 @@
       max-width: 1440px;
       margin: 0 auto;
       padding: 20px 20px 36px;
+    }
+
+    .probability-band {
+      display: grid;
+      grid-template-columns: 96px minmax(160px, 1fr) 96px;
+      gap: 10px;
+      align-items: center;
+      background: #0b1627;
+      border: 1px solid #1e324d;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      color: #eef7ff;
+    }
+
+    .probability-track {
+      height: 18px;
+      display: flex;
+      overflow: hidden;
+      border-radius: 5px;
+      background: #172235;
+      border: 1px solid #263a59;
+    }
+
+    .buy-fill {
+      background: #22c55e;
+      min-width: 2%;
+    }
+
+    .sell-fill {
+      background: #ef4444;
+      min-width: 2%;
+    }
+
+    .probability-label {
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .chat-toggle {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      width: 44px;
+      height: 44px;
+      border: 1px solid #38bdf8;
+      background: #0b1627;
+      color: #e8f7ff;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      z-index: 5;
+    }
+
+    .chat-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(360px, 94vw);
+      height: 100vh;
+      background: #08111f;
+      color: #e8f7ff;
+      border-left: 1px solid #203651;
+      transform: translateX(100%);
+      transition: transform 0.2s ease;
+      z-index: 6;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .chat-panel.open {
+      transform: translateX(0);
+    }
+
+    .chat-head,
+    .chat-form {
+      padding: 12px;
+      border-bottom: 1px solid #203651;
+    }
+
+    .chat-form {
+      border-top: 1px solid #203651;
+      border-bottom: 0;
+      display: grid;
+      grid-template-columns: 1fr 72px;
+      gap: 8px;
+    }
+
+    .chat-body {
+      padding: 12px;
+      overflow: auto;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .chat-form input {
+      min-height: 38px;
+      border-radius: 6px;
+      border: 1px solid #29415e;
+      background: #fff;
+      color: #101828;
+      padding: 8px 10px;
     }
 
     .controls {
@@ -343,6 +445,15 @@
       </label>
     </section>
 
+    <section class="probability-band" id="probabilityBand">
+      <div class="probability-label" id="buyProbability">BUY --%</div>
+      <div class="probability-track">
+        <div class="buy-fill" id="buyFill" style="width:50%"></div>
+        <div class="sell-fill" id="sellFill" style="width:50%"></div>
+      </div>
+      <div class="probability-label" id="sellProbability">SELL --%</div>
+    </section>
+
     <section class="status" id="status"></section>
 
     <section class="summary-grid" id="summary"></section>
@@ -350,6 +461,21 @@
     <section id="report"></section>
 
   </main>
+
+  <button class="chat-toggle" id="chatToggle" title="Chat">?</button>
+  <aside class="chat-panel" id="chatPanel">
+    <div class="chat-head">
+      <strong>Signal Chat</strong>
+      <button class="doc-button" id="chatClose" style="float:right; min-height:28px;">Close</button>
+    </div>
+    <div class="chat-body" id="chatBody">
+      Ask about probabilities, signals, validation, or risk.
+    </div>
+    <form class="chat-form" id="chatForm">
+      <input id="chatInput" autocomplete="off" placeholder="Ask about risk..." />
+      <button class="doc-button" type="submit">Send</button>
+    </form>
+  </aside>
 
   <script>
     const els = {
@@ -360,6 +486,16 @@
       status: document.querySelector("#status"),
       summary: document.querySelector("#summary"),
       report: document.querySelector("#report"),
+      buyProbability: document.querySelector("#buyProbability"),
+      sellProbability: document.querySelector("#sellProbability"),
+      buyFill: document.querySelector("#buyFill"),
+      sellFill: document.querySelector("#sellFill"),
+      chatToggle: document.querySelector("#chatToggle"),
+      chatPanel: document.querySelector("#chatPanel"),
+      chatClose: document.querySelector("#chatClose"),
+      chatForm: document.querySelector("#chatForm"),
+      chatInput: document.querySelector("#chatInput"),
+      chatBody: document.querySelector("#chatBody"),
     };
 
     let options = null;
@@ -461,7 +597,7 @@
           <td>${fmt.dec(strategy.test.sharpe)}</td>
           <td>${strategy.test.trades}</td>
           <td>
-            <button class="doc-button">Document</button>
+            <button class="doc-button doc-export" data-strategy-id="${strategy.id}">Document</button>
           </td>
         </tr>
       `).join("");
@@ -490,6 +626,28 @@
           </table>
         </div>
       `;
+      loadPrediction();
+    }
+
+    async function loadPrediction() {
+      const params = new URLSearchParams({
+        symbol: els.symbol.value,
+        timeframe: els.timeframe.value,
+      });
+      try {
+        const response = await fetch(`/api/prediction?${params}`);
+        const data = await response.json();
+        if (!response.ok || data.error) throw new Error(data.error || "Prediction unavailable");
+        const buy = Number(data.buy_probability);
+        const sell = Number(data.sell_probability);
+        els.buyProbability.textContent = `BUY ${buy.toFixed(2)}%`;
+        els.sellProbability.textContent = `SELL ${sell.toFixed(2)}%`;
+        els.buyFill.style.width = `${Math.max(2, buy)}%`;
+        els.sellFill.style.width = `${Math.max(2, sell)}%`;
+      } catch (error) {
+        els.buyProbability.textContent = "BUY n/a";
+        els.sellProbability.textContent = "SELL n/a";
+      }
     }
 
     async function init() {
@@ -515,6 +673,44 @@
     els.timeframe.addEventListener("change", loadReport);
     els.dataset.addEventListener("change", loadReport);
     els.limit.addEventListener("change", loadReport);
+    els.report.addEventListener("click", (event) => {
+      const button = event.target.closest(".doc-export");
+      if (!button) return;
+      const params = new URLSearchParams({
+        symbol: els.symbol.value,
+        timeframe: els.timeframe.value,
+        dataset: els.dataset.value,
+        strategyId: button.dataset.strategyId,
+      });
+      window.location.href = `/api/document?${params}`;
+    });
+    els.chatToggle.addEventListener("click", () => els.chatPanel.classList.add("open"));
+    els.chatClose.addEventListener("click", () => els.chatPanel.classList.remove("open"));
+    els.chatForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const message = els.chatInput.value.trim();
+      if (!message) return;
+      els.chatBody.innerHTML += `<p><strong>You:</strong> ${message}</p>`;
+      els.chatInput.value = "";
+      try {
+        const response = await fetch("/api/chatbot", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            message,
+            symbol: els.symbol.value,
+            timeframe: els.timeframe.value,
+          }),
+        });
+        const data = await response.json();
+        els.chatBody.innerHTML += `<p><strong>Chat:</strong> ${data.answer || data.error || "No response."}</p>`;
+      } catch (error) {
+        els.chatBody.innerHTML += `<p><strong>Chat:</strong> Could not reach the signal chat endpoint.</p>`;
+      }
+      els.chatBody.scrollTop = els.chatBody.scrollHeight;
+    });
+
+    setInterval(loadPrediction, 60000);
 
     init().catch((error) => {
       els.status.innerHTML = `

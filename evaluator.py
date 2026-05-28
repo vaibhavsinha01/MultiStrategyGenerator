@@ -54,16 +54,59 @@ def filter_metrics(metrics: dict, min_trades: int = MIN_TRADES) -> bool:
 # ── 2. Score ──────────────────────────────────────────────────────────────────
 
 def score_strategy(metrics: dict) -> float:
-    r  = metrics["return_pct"]   / 100.0
+    r  = metrics["return_pct"] / 100.0
     dd = abs(metrics["max_drawdown"]) / 100.0
-    wr = metrics["win_rate"]     / 100.0
+    wr = metrics["win_rate"] / 100.0
+    sh = max(min(float(metrics.get("sharpe", 0.0)), 5.0), -5.0) / 5.0
     n  = metrics["n_trades"]
 
     # Trade count confidence penalty (diminishing returns above 50)
     trade_confidence = min(n / 50.0, 1.0)
 
-    base = 0.40*r - 0.30*dd + 0.30*wr # here a lot of weightage is given to winrate
+    base = 0.35 * r + 0.25 * sh + 0.20 * wr - 0.20 * dd
     return round(base * trade_confidence, 6)
+
+
+def validation_adjusted_score(
+    train_metrics: dict,
+    test_metrics: dict | None = None,
+    monte_carlo: dict | None = None,
+    cross_symbol: dict | None = None,
+    sensitivity: dict | None = None,
+) -> float:
+    """
+    Robustness-aware score:
+    55% in/out score, 15% train-test consistency, 10% Monte Carlo,
+    10% cross-symbol validation, 10% parameter sensitivity stability.
+    """
+    train_score = score_strategy(train_metrics)
+    test_score = score_strategy(test_metrics) if test_metrics else train_score * 0.5
+    out_sample_score = 0.35 * train_score + 0.65 * test_score
+
+    train_return = abs(float(train_metrics.get("return_pct", 0.0)))
+    test_return = float((test_metrics or {}).get("return_pct", 0.0))
+    consistency = 1.0 if train_return <= 1e-9 else max(0.0, min(1.0, test_return / train_return))
+
+    mc = monte_carlo or {}
+    mc_loss = float(mc.get("loss_probability_pct", 50.0))
+    mc_drawdown = abs(float(mc.get("worst_drawdown_pct", 50.0)))
+    mc_component = max(0.0, min(1.0, (100.0 - mc_loss) / 100.0)) * max(0.0, min(1.0, 1.0 - mc_drawdown / 100.0))
+
+    xs = cross_symbol or {}
+    cross_component = max(0.0, min(1.0, float(xs.get("pass_rate_pct", 0.0)) / 100.0))
+
+    sens = sensitivity or {}
+    return_std = float(sens.get("return_std", 25.0) or 25.0)
+    sensitivity_component = max(0.0, min(1.0, 1.0 - return_std / 50.0))
+
+    robust = (
+        0.55 * out_sample_score +
+        0.15 * consistency +
+        0.10 * mc_component +
+        0.10 * cross_component +
+        0.10 * sensitivity_component
+    )
+    return round(robust, 6)
 
 # ── 3. Rank ───────────────────────────────────────────────────────────────────
 
@@ -124,11 +167,12 @@ def validate_on_test(
             **item,
             "test_metrics": t_metrics,
             "test_score":   score_strategy(t_metrics),
+            "robust_score": validation_adjusted_score(item["metrics"], t_metrics),
         })
 
     # Sort by combined train+test score
     validated.sort(
-        key=lambda x: x["score"] + x["test_score"],
+        key=lambda x: x.get("robust_score", x["score"] + x["test_score"]),
         reverse=True
     )
     return validated
@@ -150,10 +194,12 @@ def _flatten_result(item: dict) -> dict:
         # train metrics
         "train_return":    metrics["return_pct"],
         "train_sharpe":    metrics["sharpe"],
+        "train_sharp":     metrics["sharpe"],
         "train_drawdown":  metrics["max_drawdown"],
         "train_trades":    metrics["n_trades"],
         "train_winrate":   metrics["win_rate"],
         "score":           item["score"],
+        "robust_score":    item.get("robust_score", item.get("score", "")),
     }
 
     row.update(_flatten_regime_metrics(metrics, prefix="train"))
@@ -164,6 +210,7 @@ def _flatten_result(item: dict) -> dict:
         row.update({
             "test_return":   tm["return_pct"],
             "test_sharpe":   tm["sharpe"],
+            "test_sharp":    tm["sharpe"],
             "test_drawdown": tm["max_drawdown"],
             "test_trades":   tm["n_trades"],
             "test_winrate":  tm["win_rate"],

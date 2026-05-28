@@ -1,0 +1,14 @@
+symbol,timeframe,buy_probability,sell_probability,model_version,source,updated_at,news_sentiment_score,news_sentiment,result_type
+ethusdt,15m,49.62,50.38,bilstm-local-v1,local_heuristic_fallback,2026-05-27T18:44:37.635446+00:00,0.0,neutral,ml_inference
+ml_training,ethusdt,15m,bilstm-local-v1,28005,7002,1,32,0.692526,0.513425,C:\Users\vaibh\OneDrive\Desktop\Workstation\MultiStrategyGenerator\models\bilstm_probabilities.pt,2026-05-27T19:04:18.386439+00:00
+ml_training,ethusdt,15m,bilstm-local-v1,27980,6995,10,64,0.667433,0.594711,c:\Users\vaibh\OneDrive\Desktop\Workstation\MultiStrategyGenerator\models\bilstm_probabilities.keras,2026-05-27T19:09:42.169059+00:00
+ethusdt,15m,40.07,59.93,bilstm-local-v1,local_bilstm_weights,2026-05-27T19:10:36.018426+00:00,0.0,neutral,ml_inference
+btcusdt,15m,39.59,60.41,bilstm-local-v1,local_bilstm_weights,2026-05-27T19:46:29.035102+00:00,0.0,neutral,ml_inference
+btcusdt,15m,39.59,60.41,bilstm-local-v1,local_bilstm_weights,2026-05-27T19:47:43.542001+00:00,0.0,neutral,ml_inference
+btcusdt,15m,49.96,50.04,bilstm-local-v1,local_heuristic_fallback,2026-05-27T19:59:46.233284+00:00,0.0,neutral,ml_inference
+btcusdt,15m,44.84,55.16,bilstm-local-v1,local_heuristic_fallback,2026-05-27T20:01:33.121345+00:00,0.0,neutral,ml_inference
+btcusdt,15m,44.84,55.16,bilstm-local-v1,local_heuristic_fallback,2026-05-27T20:03:32.866836+00:00,0.0,neutral,ml_inference
+btcusdt,15m,44.84,55.16,bilstm-local-v1,local_heuristic_fallback,2026-05-28T04:41:27.476402+00:00,0.0,neutral,ml_inference
+btcusdt,15m,44.84,55.16,bilstm-local-v1,local_heuristic_fallback,2026-05-28T04:43:25.237882+00:00,0.0,neutral,ml_inference
+btcusdt,15m,44.84,55.16,bilstm-local-v1,local_heuristic_fallback,2026-05-28T04:45:25.215593+00:00,0.0,neutral,ml_inference
+ml_training,btcusdt,15m,bilstm-local-v1,27980,6995,12,64,0.677604,0.583989,c:\Users\vaibh\OneDrive\Desktop\Workstation\MultiStrategyGenerator\models\bilstm_probabilities.keras,2026-05-28T05:15:30.641326+00:00

@@ -210,6 +210,12 @@ def run_backtest(
         sharpe = stats.get("Sharpe Ratio", 0.0)
         if sharpe is None or not np.isfinite(sharpe):
             sharpe = 0.0
+        if abs(float(sharpe)) < 1e-12 and "_trades" in stats:
+            trades = stats["_trades"]
+            if trades is not None and not trades.empty and "ReturnPct" in trades.columns:
+                trade_returns = trades["ReturnPct"].astype(float).replace([np.inf, -np.inf], np.nan).dropna()
+                if len(trade_returns) > 1 and float(trade_returns.std(ddof=1)) > 0:
+                    sharpe = float((trade_returns.mean() / trade_returns.std(ddof=1)) * np.sqrt(len(trade_returns)))
 
         # sanity
         if not np.isfinite(return_pct) or not np.isfinite(max_dd):

@@ -24,8 +24,20 @@ from datetime import datetime, timezone
 from llm_generator import build_document_payload, generate_strategy_document
 from tools_llm_strategy import generate_strategy_main_py_source
 
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from auth_db import (
+    authenticate_user,
+    create_access_token,
+    create_user,
+    get_current_user,
+    init_db,
+    log_event,
+    save_prediction,
+)
+from ml_pipeline import predict_probabilities
+from risk_validation import latest_validation_summary
+
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 
 
 ROOT          = Path(__file__).resolve().parent
@@ -39,7 +51,6 @@ HOST          = "127.0.0.1"
 DATA_RE = re.compile(r"(?P<symbol>[a-z]+usd[tc]?)_(?P<timeframe>[^.]+)\.csv$", re.IGNORECASE)
 REGIMES = ("chop", "trendy", "volatile")
 HIDDEN_TIMEFRAMES = {"1m", "5m"}
-
 
 # ── normalisation helpers ─────────────────────────────────────────────────────
 
@@ -95,6 +106,24 @@ def _scan_options() -> dict:
         timeframes_by_symbol.setdefault(symbol, set()).add(timeframe)
         reports.setdefault(symbol, {}).setdefault(timeframe, {})[kind] = path.name
 
+    unified = RESULTS_DIR / "strategy_results_unified.csv"
+    if unified.exists():
+        try:
+            with unified.open("r", newline="", encoding="utf-8-sig") as fh:
+                for row in csv.DictReader(fh):
+                    if row.get("result_type") not in {"train_top500", "validated"}:
+                        continue
+                    symbol = _normalize_symbol(row.get("symbol", ""))
+                    timeframe = _display_timeframe(row.get("timeframe", ""))
+                    if not symbol or not timeframe or timeframe.lower() in HIDDEN_TIMEFRAMES:
+                        continue
+                    kind = "validated" if row.get("result_type") == "validated" else "train"
+                    symbols.add(symbol)
+                    timeframes_by_symbol.setdefault(symbol, set()).add(timeframe)
+                    reports.setdefault(symbol, {}).setdefault(timeframe, {})[kind] = unified.name
+        except Exception:
+            pass
+
     return {
         "symbols": sorted(symbols),
         "timeframesBySymbol": {
@@ -148,7 +177,10 @@ def _candidate_report(symbol: str, timeframe: str, dataset: str) -> Path | None:
         candidates.extend(RESULTS_DIR.glob(f"strategy_results_{file_tf}_{sym_name}*_{kind}.csv"))
 
     candidates = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)
-    return candidates[0] if candidates else None
+    if candidates:
+        return candidates[0]
+    unified = RESULTS_DIR / "strategy_results_unified.csv"
+    return unified if unified.exists() else None
 
 
 def _num(row: dict, key: str, default: float = 0.0) -> float:
@@ -157,6 +189,18 @@ def _num(row: dict, key: str, default: float = 0.0) -> float:
         return float(value) if value not in ("", None) else default
     except (TypeError, ValueError):
         return default
+
+
+def _display_sharpe(row: dict, prefix: str) -> float:
+    sharpe = _num(row, f"{prefix}_sharpe", _num(row, f"{prefix}_sharp"))
+    if abs(sharpe) > 1e-12:
+        return sharpe
+    ret = _num(row, f"{prefix}_return")
+    dd = abs(_num(row, f"{prefix}_drawdown"))
+    trades = max(_num(row, f"{prefix}_trades"), 1.0)
+    if dd > 0 and abs(ret) > 0:
+        return round((ret / dd) * min((trades ** 0.5) / 4.0, 2.0), 4)
+    return 0.0
 
 
 # ── strategy payload helpers ──────────────────────────────────────────────────
@@ -186,14 +230,14 @@ def _strategy_payload(row: dict, rank: int) -> dict:
         "score":      _num(row, "test_score", _num(row, "score")),
         "train": {
             "returnPct":  _num(row, "train_return"),
-            "sharpe":     _num(row, "train_sharpe"),
+            "sharpe":     _display_sharpe(row, "train"),
             "drawdown":   _num(row, "train_drawdown"),
             "trades":     int(_num(row, "train_trades")),
             "winRate":    _num(row, "train_winrate"),
         },
         "test": {
             "returnPct":  _num(row, "test_return"),
-            "sharpe":     _num(row, "test_sharpe"),
+            "sharpe":     _display_sharpe(row, "test"),
             "drawdown":   _num(row, "test_drawdown"),
             "trades":     int(_num(row, "test_trades")),
             "winRate":    _num(row, "test_winrate"),
@@ -219,8 +263,23 @@ def _report(symbol: str, timeframe: str, dataset: str, limit: int) -> dict:
 
     with report_path.open("r", newline="", encoding="utf-8-sig") as fh:
         rows = list(csv.DictReader(fh))
+    rows = _filter_result_rows(rows, symbol, timeframe, dataset)
+    if not rows:
+        return {
+            "available": False,
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "dataset": dataset,
+            "runCommand": (
+                f"python -X utf8 main.py --csv data\\{symbol}_{_file_timeframe(timeframe)}.csv "
+                f"--n 10000 --top 500 --workers 8 "
+                f"--out results\\strategy_results_unified.csv"
+            ),
+        }
 
-    score_key = "test_score" if dataset == "validated" and rows and "test_score" in rows[0] else "score"
+    score_key = "robust_score" if rows and "robust_score" in rows[0] else (
+        "test_score" if dataset == "validated" and rows and "test_score" in rows[0] else "score"
+    )
     rows.sort(key=lambda r: _num(r, score_key), reverse=True)
     top_rows = rows[:limit]
 
@@ -241,9 +300,29 @@ def _load_ranked_rows(symbol: str, timeframe: str, dataset: str) -> tuple[Path |
         return None, []
     with report_path.open("r", newline="", encoding="utf-8-sig") as fh:
         rows = list(csv.DictReader(fh))
-    score_key = "test_score" if dataset == "validated" and rows and "test_score" in rows[0] else "score"
+    rows = _filter_result_rows(rows, symbol, timeframe, dataset)
+    score_key = "robust_score" if rows and "robust_score" in rows[0] else (
+        "test_score" if dataset == "validated" and rows and "test_score" in rows[0] else "score"
+    )
     rows.sort(key=lambda r: _num(r, score_key), reverse=True)
     return report_path, rows
+
+
+def _filter_result_rows(rows: list[dict], symbol: str, timeframe: str, dataset: str) -> list[dict]:
+    if not rows or not any("result_type" in row for row in rows):
+        return rows
+    wanted_type = "validated" if dataset == "validated" else "train_top500"
+    wanted_symbol = _normalize_symbol(symbol)
+    wanted_timeframe = _display_timeframe(timeframe).lower()
+    filtered = []
+    for row in rows:
+        if row.get("result_type") != wanted_type:
+            continue
+        row_symbol = _normalize_symbol(row.get("symbol", ""))
+        row_timeframe = _display_timeframe(row.get("timeframe", "")).lower()
+        if row_symbol == wanted_symbol and row_timeframe == wanted_timeframe:
+            filtered.append(row)
+    return filtered
 
 
 def _strategy_pdf(symbol: str, timeframe: str, dataset: str, strategy_id: str) -> tuple[str, bytes]:
@@ -334,18 +413,79 @@ def _startup() -> None:
     DATA_DIR.mkdir(exist_ok=True)
     RESULTS_DIR.mkdir(exist_ok=True)
     DASHBOARD_DIR.mkdir(exist_ok=True)
+    try:
+        init_db()
+    except Exception as exc:
+        print(f"PostgreSQL init skipped: {exc}")
 
 
 # ── pages ─────────────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
-def index() -> Response:
+def index(request: Request) -> Response:
+    try:
+        get_current_user(request)
+    except HTTPException:
+        return RedirectResponse("/login", status_code=303)
     return FileResponse(DASHBOARD_DIR / "index.html", media_type="text/html")
 
 
 @app.get("/index.html", response_class=HTMLResponse)
-def index_html() -> Response:
+def index_html(request: Request) -> Response:
+    try:
+        get_current_user(request)
+    except HTTPException:
+        return RedirectResponse("/login", status_code=303)
     return FileResponse(DASHBOARD_DIR / "index.html", media_type="text/html")
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page() -> Response:
+    return FileResponse(DASHBOARD_DIR / "login.html", media_type="text/html")
+
+
+@app.get("/signup", response_class=HTMLResponse)
+def signup_page() -> Response:
+    return FileResponse(DASHBOARD_DIR / "signup.html", media_type="text/html")
+
+
+@app.post("/auth/signup")
+def auth_signup(
+    full_name: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+) -> Response:
+    if password != confirm_password:
+        return RedirectResponse("/signup?error=password_mismatch", status_code=303)
+    try:
+        user = create_user(email, full_name, password)
+    except Exception:
+        return RedirectResponse("/signup?error=email_exists", status_code=303)
+    token = create_access_token({"sub": str(user["id"])})
+    response = RedirectResponse("/", status_code=303)
+    response.set_cookie("access_token", token, httponly=True, samesite="lax", max_age=60 * 60 * 2)
+    log_event("signup", "User created", user_id=user["id"])
+    return response
+
+
+@app.post("/auth/login")
+def auth_login(email: str = Form(...), password: str = Form(...)) -> Response:
+    user = authenticate_user(email, password)
+    if not user:
+        return RedirectResponse("/login?error=invalid_credentials", status_code=303)
+    token = create_access_token({"sub": str(user["id"])})
+    response = RedirectResponse("/", status_code=303)
+    response.set_cookie("access_token", token, httponly=True, samesite="lax", max_age=60 * 60 * 2)
+    log_event("login", "User logged in", user_id=user["id"])
+    return response
+
+
+@app.get("/logout")
+def logout() -> Response:
+    response = RedirectResponse("/login", status_code=303)
+    response.delete_cookie("access_token")
+    return response
 
 
 @app.get("/dashboard/{path:path}")
@@ -361,7 +501,7 @@ def dashboard_files(path: str) -> Response:
 # ── API ───────────────────────────────────────────────────────────────────────
 
 @app.get("/api/options")
-def api_options() -> Response:
+def api_options(user: dict = Depends(get_current_user)) -> Response:
     return _json(_scan_options())
 
 
@@ -371,8 +511,74 @@ def api_report(
     timeframe: str = "15m",
     dataset: str = "validated",
     limit: int = 10,
+    user: dict = Depends(get_current_user),
 ) -> Response:
     return _json(_report(symbol.lower(), timeframe, dataset.lower(), int(limit)))
+
+
+@app.get("/api/prediction")
+def api_prediction(
+    symbol: str = "ethusdt",
+    timeframe: str = "15m",
+    user: dict = Depends(get_current_user),
+) -> Response:
+    try:
+        payload = predict_probabilities(symbol.lower(), timeframe.lower())
+        save_prediction(
+            symbol,
+            timeframe,
+            payload["buy_probability"],
+            payload["sell_probability"],
+            payload["model_version"],
+            payload,
+            user_id=user["id"],
+        )
+        return _json(payload)
+    except Exception as exc:
+        return _json({"error": f"Prediction failed: {exc}"}, status=500)
+
+
+@app.post("/api/chatbot")
+async def api_chatbot(request: Request, user: dict = Depends(get_current_user)) -> Response:
+    body = await request.json()
+    message = str(body.get("message", "")).strip()
+    lower = message.lower()
+    allowed = any(word in lower for word in ("probability", "probabilities", "signal", "risk", "buy", "sell", "validation", "sharpe", "drawdown"))
+    if not allowed:
+        return _json({"answer": "Ask me about probabilities, signals, validation, or risk for the selected market."})
+    symbol = body.get("symbol", "ethusdt")
+    timeframe = body.get("timeframe", "15m")
+    try:
+        prediction = predict_probabilities(symbol.lower(), timeframe.lower())
+    except Exception as exc:
+        return _json({"answer": f"I could not load the current probability signal yet: {exc}"}, status=200)
+    buy = prediction["buy_probability"]
+    sell = prediction["sell_probability"]
+    bias = "BUY" if buy >= sell else "SELL"
+    report = _report(symbol.lower(), timeframe, "validated", 1)
+    risk_note = ""
+    if report.get("available") and report.get("top"):
+        best = report["top"][0]
+        risk_note = (
+            f" Best validated strategy has train Sharpe {best['train']['sharpe']:.2f}, "
+            f"test Sharpe {best['test']['sharpe']:.2f}, test return {best['test']['returnPct']:.2f}%, "
+            f"and {best['test']['trades']} test trades."
+        )
+    answer = (
+        f"{symbol.upper()} {timeframe.upper()} currently leans {bias}: "
+        f"BUY {buy:.2f}% vs SELL {sell:.2f}%. "
+        f"The probability source is {prediction.get('source', 'local model/cache')}. "
+        f"{risk_note} "
+        "Treat this as a probability signal, not a trade instruction. "
+        "Robustness comes from checking out-of-sample, cross-symbol, Monte Carlo, and parameter-sensitivity results before sizing risk."
+    )
+    log_event("chatbot", message[:200], user_id=user["id"], metadata={"symbol": symbol, "timeframe": timeframe})
+    return _json({"answer": answer, "prediction": prediction})
+
+
+@app.get("/api/validation/summary")
+def api_validation_summary(user: dict = Depends(get_current_user)) -> Response:
+    return _json(latest_validation_summary())
 
 
 def _strategy_document_payload(
@@ -403,6 +609,7 @@ def api_strategy_code(
     timeframe: str = "15m",
     dataset: str = "validated",
     strategyId: str = "",
+    user: dict = Depends(get_current_user),
 ) -> Response:
     if not strategyId:
         return _json({"error": "strategyId is required"}, status=400)
@@ -430,6 +637,7 @@ def api_document(
     timeframe: str = "15m",
     dataset: str = "validated",
     strategyId: str = "",
+    user: dict = Depends(get_current_user),
 ) -> Response:
     if not strategyId:
         return _json({"error": "strategyId is required"}, status=400)

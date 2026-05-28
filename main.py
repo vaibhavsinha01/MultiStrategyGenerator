@@ -2398,15 +2398,15 @@ def run(
         "seed": seed,
     }
 
-    train_out = output_csv.replace(".csv", "_train_top500.csv")
-    save_results(top, path=train_out, append=append_results, metadata=export_metadata)
+    train_metadata = {**export_metadata, "result_type": "train_top500"}
+    save_results(top, path=output_csv, append=append_results, metadata=train_metadata)
     save_mode = "appended" if append_results else "saved"
-    print(f"\n✓ Train results {save_mode} → {train_out}  ({len(top)} rows)")
+    print(f"\n✓ Train results {save_mode} → {output_csv}  ({len(top)} rows)")
 
     if validated:
-        validated_out = output_csv.replace(".csv", "_validated.csv")
-        save_results(validated, path=validated_out, append=append_results, metadata=export_metadata)
-        print(f"✓ Validated results {save_mode} → {validated_out}  ({len(validated)} rows)")
+        validated_metadata = {**export_metadata, "result_type": "validated"}
+        save_results(validated, path=output_csv, append=True, metadata=validated_metadata)
+        print(f"✓ Validated results appended → {output_csv}  ({len(validated)} rows)")
     else:
         print("⚠  No validated strategies — only train results saved.")
 
@@ -2437,7 +2437,7 @@ if __name__ == "__main__":
     parser.add_argument("--n",       type=int, default=1000000,  help="Strategies to generate") # takes 35 seconds to test 1000 strategies for 5.7k cols of data approx
     parser.add_argument("--top",     type=int, default=1000,    help="Top N to validate")
     parser.add_argument("--workers", type=int, default=13,     help="Parallel workers")
-    parser.add_argument("--out",     default=r"C:\Users\vaibh\OneDrive\Desktop\Workstation\MultiStrategyGenerator\results\strategy_results_15m_btcusdt.csv", help="Output CSV path")
+    parser.add_argument("--out",     default=r"C:\Users\vaibh\OneDrive\Desktop\Workstation\MultiStrategyGenerator\results\strategy_results_unified.csv", help="Output CSV path")
     parser.add_argument("--seed",    type=int, default=70906,   help="Random seed")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite result CSVs instead of appending")
     args = parser.parse_args()

@@ -1,3 +1,6 @@
+import hashlib
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import ta
@@ -2126,3 +2129,33 @@ def feature_engineer(df: pd.DataFrame) -> pd.DataFrame:
     df.reset_index(inplace=True)
 
     return df
+
+
+CACHE_DIR = Path(__file__).resolve().parent / "cache" / "features"
+
+
+def _fingerprint_frame(df: pd.DataFrame, symbol: str, timeframe: str) -> str:
+    head = f"{symbol.lower()}:{timeframe.lower()}:{len(df)}:{list(df.columns)}"
+    if len(df):
+        head += f":{df.iloc[0].to_json()}:{df.iloc[-1].to_json()}"
+    return hashlib.sha256(head.encode("utf-8")).hexdigest()[:16]
+
+
+def cached_feature_engineer(df: pd.DataFrame, symbol: str = "market", timeframe: str = "15m") -> pd.DataFrame:
+    """Run feature engineering once per local data snapshot and reuse parquet/pickle output."""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    stem = f"{symbol.lower()}_{timeframe.lower()}_{_fingerprint_frame(df, symbol, timeframe)}"
+    parquet_path = CACHE_DIR / f"{stem}.parquet"
+    pickle_path = CACHE_DIR / f"{stem}.pkl"
+
+    if parquet_path.exists():
+        return pd.read_parquet(parquet_path)
+    if pickle_path.exists():
+        return pd.read_pickle(pickle_path)
+
+    engineered = feature_engineer(df.copy())
+    try:
+        engineered.to_parquet(parquet_path, index=False)
+    except Exception:
+        engineered.to_pickle(pickle_path)
+    return engineered

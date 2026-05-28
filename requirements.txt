@@ -5,10 +5,15 @@ ta
 python-multipart
 passlib[bcrypt]
 itsdangerous
+python-jose[cryptography]
+psycopg2-binary
+SQLAlchemy
 
 polars>=1.0.0
 pandas
 numpy
+pyarrow
+joblib
 
 google-genai
 
