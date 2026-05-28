@@ -69,11 +69,27 @@ def init_db() -> None:
 # def hash_password(password: str) -> str:
 #     return pwd_context.hash(password)
 
+# def hash_password(password: str) -> str:
+#     try:
+#         hashed = pwd_context.hash(password)
+#         print("PASSWORD HASH SUCCESS")
+#         return hashed
+#     except Exception as e:
+#         print(f"HASH PASSWORD ERROR: {repr(e)}")
+#         raise
+
 def hash_password(password: str) -> str:
+
+    password = password.strip()
+
+    print(f"PASSWORD LENGTH: {len(password)}")
+    print(f"PASSWORD BYTES: {len(password.encode('utf-8'))}")
+
     try:
         hashed = pwd_context.hash(password)
         print("PASSWORD HASH SUCCESS")
         return hashed
+
     except Exception as e:
         print(f"HASH PASSWORD ERROR: {repr(e)}")
         raise
@@ -83,7 +99,8 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, hashed_password: str) -> bool:
     try:
-        result = pwd_context.verify(password, hashed_password)
+        # result = pwd_context.verify(password, hashed_password)
+        result = pwd_context.verify(password.strip(), hashed_password)
         print(f"VERIFY PASSWORD RESULT: {result}")
         return result
     except Exception as e:

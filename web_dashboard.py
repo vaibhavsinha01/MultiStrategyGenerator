@@ -37,7 +37,15 @@ from ml_pipeline import predict_probabilities
 from risk_validation import latest_validation_summary
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+# from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+    PlainTextResponse,
+)
 
 
 ROOT          = Path(__file__).resolve().parent
