@@ -21,3 +21,4 @@ reportlab
 
 python-dotenv
 bcrypt
+backtesting
