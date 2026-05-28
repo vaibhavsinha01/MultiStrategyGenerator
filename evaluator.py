@@ -33,9 +33,9 @@ REGIME_METRIC_COLUMNS = (
 
 MIN_TRADES = 50
 MIN_TEST_TRADES = 10
-MAX_DRAWDOWN = -40.0
+MAX_DRAWDOWN = -30.0
 MIN_WIN_RATE = 30.0
-MIN_RETURN = -10.0
+MIN_RETURN = 10.0
 
 # ── 1. Filter ─────────────────────────────────────────────────────────────────
 
@@ -63,7 +63,7 @@ def score_strategy(metrics: dict) -> float:
     # Trade count confidence penalty (diminishing returns above 50)
     trade_confidence = min(n / 50.0, 1.0)
 
-    base = 0.35 * r + 0.25 * sh + 0.20 * wr - 0.20 * dd
+    base = 0.45 * r + 0.3 * sh + 0.25 * wr - 0.20 * dd
     return round(base * trade_confidence, 6)
 
 
@@ -100,10 +100,10 @@ def validation_adjusted_score(
     sensitivity_component = max(0.0, min(1.0, 1.0 - return_std / 50.0))
 
     robust = (
-        0.55 * out_sample_score +
-        0.15 * consistency +
-        0.10 * mc_component +
-        0.10 * cross_component +
+        0.35 * out_sample_score +
+        0.25 * consistency +
+        0.15 * mc_component +
+        0.15 * cross_component +
         0.10 * sensitivity_component
     )
     return round(robust, 6)
@@ -263,7 +263,6 @@ def print_regime_breakdown(
                 f"{values.get('win_rate', 0):>7.1f} "
                 f"{values.get('avg_trade_return_pct', 0):>8.2f}"
             )
-
 
 def save_results(
     results: list[dict],

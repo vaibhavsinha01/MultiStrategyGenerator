@@ -82,29 +82,6 @@ def _json(payload: dict, status: int = 200) -> JSONResponse:
 def _scan_options() -> dict:
     symbols: set[str] = set()
     timeframes_by_symbol: dict[str, set[str]] = {}
-    reports: dict[str, dict[str, dict[str, str]]] = {}
-
-    for path in DATA_DIR.glob("*.csv"):
-        match = DATA_RE.match(path.name)
-        if not match:
-            continue
-        symbol    = _normalize_symbol(match.group("symbol"))
-        timeframe = _display_timeframe(match.group("timeframe"))
-        if timeframe.lower() in HIDDEN_TIMEFRAMES:
-            continue
-        symbols.add(symbol)
-        timeframes_by_symbol.setdefault(symbol, set()).add(timeframe)
-
-    for path in RESULTS_DIR.glob("strategy_results_*.csv"):
-        parsed = _parse_result_name(path.name)
-        if parsed is None:
-            continue
-        symbol, timeframe, kind = parsed
-        if timeframe.lower() in HIDDEN_TIMEFRAMES:
-            continue
-        symbols.add(symbol)
-        timeframes_by_symbol.setdefault(symbol, set()).add(timeframe)
-        reports.setdefault(symbol, {}).setdefault(timeframe, {})[kind] = path.name
 
     unified = RESULTS_DIR / "strategy_results_unified.csv"
     if unified.exists():
@@ -117,10 +94,8 @@ def _scan_options() -> dict:
                     timeframe = _display_timeframe(row.get("timeframe", ""))
                     if not symbol or not timeframe or timeframe.lower() in HIDDEN_TIMEFRAMES:
                         continue
-                    kind = "validated" if row.get("result_type") == "validated" else "train"
                     symbols.add(symbol)
                     timeframes_by_symbol.setdefault(symbol, set()).add(timeframe)
-                    reports.setdefault(symbol, {}).setdefault(timeframe, {})[kind] = unified.name
         except Exception:
             pass
 
@@ -130,8 +105,62 @@ def _scan_options() -> dict:
             sym: sorted(vals, key=_timeframe_sort_key)
             for sym, vals in timeframes_by_symbol.items()
         },
-        "reports": reports,
+        "reports": {},  # no longer needed
     }
+
+# def _scan_options() -> dict:
+#     symbols: set[str] = set()
+#     timeframes_by_symbol: dict[str, set[str]] = {}
+#     reports: dict[str, dict[str, dict[str, str]]] = {}
+
+#     for path in DATA_DIR.glob("*.csv"):
+#         match = DATA_RE.match(path.name)
+#         if not match:
+#             continue
+#         symbol    = _normalize_symbol(match.group("symbol"))
+#         timeframe = _display_timeframe(match.group("timeframe"))
+#         if timeframe.lower() in HIDDEN_TIMEFRAMES:
+#             continue
+#         symbols.add(symbol)
+#         timeframes_by_symbol.setdefault(symbol, set()).add(timeframe)
+
+#     for path in RESULTS_DIR.glob("strategy_results_*.csv"):
+#         parsed = _parse_result_name(path.name)
+#         if parsed is None:
+#             continue
+#         symbol, timeframe, kind = parsed
+#         if timeframe.lower() in HIDDEN_TIMEFRAMES:
+#             continue
+#         symbols.add(symbol)
+#         timeframes_by_symbol.setdefault(symbol, set()).add(timeframe)
+#         reports.setdefault(symbol, {}).setdefault(timeframe, {})[kind] = path.name
+
+#     unified = RESULTS_DIR / "strategy_results_unified.csv"
+#     if unified.exists():
+#         try:
+#             with unified.open("r", newline="", encoding="utf-8-sig") as fh:
+#                 for row in csv.DictReader(fh):
+#                     if row.get("result_type") not in {"train_top500", "validated"}:
+#                         continue
+#                     symbol = _normalize_symbol(row.get("symbol", ""))
+#                     timeframe = _display_timeframe(row.get("timeframe", ""))
+#                     if not symbol or not timeframe or timeframe.lower() in HIDDEN_TIMEFRAMES:
+#                         continue
+#                     kind = "validated" if row.get("result_type") == "validated" else "train"
+#                     symbols.add(symbol)
+#                     timeframes_by_symbol.setdefault(symbol, set()).add(timeframe)
+#                     reports.setdefault(symbol, {}).setdefault(timeframe, {})[kind] = unified.name
+#         except Exception:
+#             pass
+
+#     return {
+#         "symbols": sorted(symbols),
+#         "timeframesBySymbol": {
+#             sym: sorted(vals, key=_timeframe_sort_key)
+#             for sym, vals in timeframes_by_symbol.items()
+#         },
+#         "reports": reports,
+#     }
 
 
 def _parse_result_name(filename: str) -> tuple[str, str, str] | None:
@@ -163,25 +192,28 @@ def _timeframe_sort_key(value: str) -> tuple[int, int | str]:
     return (9, value)
 
 
+# def _candidate_report(symbol: str, timeframe: str, dataset: str) -> Path | None:
+#     symbol   = _normalize_symbol(symbol)
+#     file_tf  = _file_timeframe(timeframe)
+#     kind     = "validated" if dataset == "validated" else "train_top500"
+#     sym_cands = [symbol]
+#     if symbol.endswith("usd"):
+#         sym_cands.append(symbol[:-3])
+
+#     candidates = []
+#     for sym_name in sym_cands:
+#         candidates.extend(RESULTS_DIR.glob(f"strategy_results_{sym_name}_{file_tf}*_{kind}.csv"))
+#         candidates.extend(RESULTS_DIR.glob(f"strategy_results_{file_tf}_{sym_name}*_{kind}.csv"))
+
+#     candidates = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)
+#     if candidates:
+#         return candidates[0]
+#     unified = RESULTS_DIR / "strategy_results_unified.csv"
+#     return unified if unified.exists() else None
+
 def _candidate_report(symbol: str, timeframe: str, dataset: str) -> Path | None:
-    symbol   = _normalize_symbol(symbol)
-    file_tf  = _file_timeframe(timeframe)
-    kind     = "validated" if dataset == "validated" else "train_top500"
-    sym_cands = [symbol]
-    if symbol.endswith("usd"):
-        sym_cands.append(symbol[:-3])
-
-    candidates = []
-    for sym_name in sym_cands:
-        candidates.extend(RESULTS_DIR.glob(f"strategy_results_{sym_name}_{file_tf}*_{kind}.csv"))
-        candidates.extend(RESULTS_DIR.glob(f"strategy_results_{file_tf}_{sym_name}*_{kind}.csv"))
-
-    candidates = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)
-    if candidates:
-        return candidates[0]
     unified = RESULTS_DIR / "strategy_results_unified.csv"
     return unified if unified.exists() else None
-
 
 def _num(row: dict, key: str, default: float = 0.0) -> float:
     try:
@@ -543,9 +575,9 @@ async def api_chatbot(request: Request, user: dict = Depends(get_current_user)) 
     body = await request.json()
     message = str(body.get("message", "")).strip()
     lower = message.lower()
-    allowed = any(word in lower for word in ("probability", "probabilities", "signal", "risk", "buy", "sell", "validation", "sharpe", "drawdown"))
-    if not allowed:
-        return _json({"answer": "Ask me about probabilities, signals, validation, or risk for the selected market."})
+    # allowed = any(word in lower for word in ("probability", "probabilities", "signal", "risk", "buy", "sell", "validation", "sharpe", "drawdown"))
+    # if not allowed:
+    #     return _json({"answer": "Ask me about probabilities, signals, validation, or risk for the selected market."})
     symbol = body.get("symbol", "ethusdt")
     timeframe = body.get("timeframe", "15m")
     try:

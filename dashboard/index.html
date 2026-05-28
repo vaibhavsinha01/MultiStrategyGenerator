@@ -63,7 +63,7 @@
       padding: 20px 20px 36px;
     }
 
-    .probability-band {
+    {% comment %} .probability-band {
       display: grid;
       grid-template-columns: 96px minmax(160px, 1fr) 96px;
       gap: 10px;
@@ -98,7 +98,7 @@
     .probability-label {
       font-size: 13px;
       font-weight: 800;
-    }
+    } {% endcomment %}
 
     .chat-toggle {
       position: fixed;
@@ -416,7 +416,23 @@
         </div>
       </div>
 
-      <div style="padding-bottom:6px;">
+      <div style="padding-bottom:6px; display:flex; align-items:center; gap:16px;">
+        <a
+          href="https://simurgh-capital.vercel.app/book-call"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="
+            background: #f0a500;
+            color: #000;
+            font-weight: 700;
+            font-size: 13px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+          "
+        >
+          Visit Site →
+        </a>
         <a href="/logout" style="color:#cfd6df; text-decoration:none; font-weight:700;">
           Logout
         </a>
@@ -425,7 +441,7 @@
   </header>
 
   <!-- AdSense Banner AFTER HEADER -->
-  <section class="ad-container">
+  <section class="ad-container" style="display:none">
     <ins class="adsbygoogle"
       style="display:block"
       data-ad-client="ca-pub-7746104363235696"
@@ -470,14 +486,14 @@
       </label>
     </section>
 
-    <section class="probability-band" id="probabilityBand">
+    <!-- <section class="probability-band" id="probabilityBand">
       <div class="probability-label" id="buyProbability">BUY --%</div>
       <div class="probability-track">
         <div class="buy-fill" id="buyFill" style="width:50%"></div>
         <div class="sell-fill" id="sellFill" style="width:50%"></div>
       </div>
       <div class="probability-label" id="sellProbability">SELL --%</div>
-    </section>
+    </section> -->
 
     <section class="status" id="status"></section>
 
@@ -487,7 +503,7 @@
 
   </main>
 
-  <button class="chat-toggle" id="chatToggle" title="Chat">?</button>
+  <button class="chat-toggle" id="chatToggle" title="Chat" style="display:none">?</button>
   <aside class="chat-panel" id="chatPanel">
     <div class="chat-head">
       <strong>Signal Chat</strong>
@@ -511,10 +527,10 @@
       status: document.querySelector("#status"),
       summary: document.querySelector("#summary"),
       report: document.querySelector("#report"),
-      buyProbability: document.querySelector("#buyProbability"),
-      sellProbability: document.querySelector("#sellProbability"),
-      buyFill: document.querySelector("#buyFill"),
-      sellFill: document.querySelector("#sellFill"),
+      // buyProbability: document.querySelector("#buyProbability"),
+      // sellProbability: document.querySelector("#sellProbability"),
+      // buyFill: document.querySelector("#buyFill"),
+      // sellFill: document.querySelector("#sellFill"),
       chatToggle: document.querySelector("#chatToggle"),
       chatPanel: document.querySelector("#chatPanel"),
       chatClose: document.querySelector("#chatClose"),
@@ -655,7 +671,7 @@
           </table>
         </div>
       `;
-      loadPrediction();
+      // loadPrediction();
     }
 
     async function loadPrediction() {
@@ -739,7 +755,7 @@
       els.chatBody.scrollTop = els.chatBody.scrollHeight;
     });
 
-    setInterval(loadPrediction, 60000);
+    // setInterval(loadPrediction, 60000);
 
     init().catch((error) => {
       els.status.innerHTML = `
