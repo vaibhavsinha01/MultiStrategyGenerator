@@ -440,6 +440,16 @@ def _strategy_pdf(symbol: str, timeframe: str, dataset: str, strategy_id: str) -
 app = FastAPI(title="MultiStrategyGenerator Dashboard")
 
 
+# @app.on_event("startup")
+# def _startup() -> None:
+#     DATA_DIR.mkdir(exist_ok=True)
+#     RESULTS_DIR.mkdir(exist_ok=True)
+#     DASHBOARD_DIR.mkdir(exist_ok=True)
+#     try:
+#         init_db()
+#     except Exception as exc:
+#         print(f"PostgreSQL init skipped: {exc}")
+
 @app.on_event("startup")
 def _startup() -> None:
     DATA_DIR.mkdir(exist_ok=True)
@@ -447,9 +457,9 @@ def _startup() -> None:
     DASHBOARD_DIR.mkdir(exist_ok=True)
     try:
         init_db()
+        print("PostgreSQL init OK")
     except Exception as exc:
-        print(f"PostgreSQL init skipped: {exc}")
-
+        print(f"PostgreSQL init FAILED: {exc}")
 
 # ── pages ─────────────────────────────────────────────────────────────────────
 
@@ -492,13 +502,33 @@ def auth_signup(
         return RedirectResponse("/signup?error=password_mismatch", status_code=303)
     try:
         user = create_user(email, full_name, password)
-    except Exception:
+    except Exception as e:
+        print(f"Signup error: {e}")  # ← add this line
         return RedirectResponse("/signup?error=email_exists", status_code=303)
     token = create_access_token({"sub": str(user["id"])})
     response = RedirectResponse("/", status_code=303)
     response.set_cookie("access_token", token, httponly=True, samesite="lax", max_age=60 * 60 * 2)
     log_event("signup", "User created", user_id=user["id"])
     return response
+
+# @app.post("/auth/signup")
+# def auth_signup(
+#     full_name: str = Form(...),
+#     email: str = Form(...),
+#     password: str = Form(...),
+#     confirm_password: str = Form(...),
+# ) -> Response:
+#     if password != confirm_password:
+#         return RedirectResponse("/signup?error=password_mismatch", status_code=303)
+#     try:
+#         user = create_user(email, full_name, password)
+#     except Exception:
+#         return RedirectResponse("/signup?error=email_exists", status_code=303)
+#     token = create_access_token({"sub": str(user["id"])})
+#     response = RedirectResponse("/", status_code=303)
+#     response.set_cookie("access_token", token, httponly=True, samesite="lax", max_age=60 * 60 * 2)
+#     log_event("signup", "User created", user_id=user["id"])
+#     return response
 
 
 @app.post("/auth/login")
@@ -687,6 +717,13 @@ def api_document(
         },
     )
 
+@app.get("/admin/initdb")
+def admin_initdb() -> Response:
+    try:
+        init_db()
+        return _json({"status": "ok", "message": "Database initialized successfully"})
+    except Exception as exc:
+        return _json({"status": "error", "message": str(exc)}, status=500)
 
 # ── entrypoint ────────────────────────────────────────────────────────────────
 
