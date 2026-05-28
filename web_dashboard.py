@@ -490,7 +490,6 @@ def login_page() -> Response:
 def signup_page() -> Response:
     return FileResponse(DASHBOARD_DIR / "signup.html", media_type="text/html")
 
-
 @app.post("/auth/signup")
 def auth_signup(
     full_name: str = Form(...),
@@ -498,18 +497,61 @@ def auth_signup(
     password: str = Form(...),
     confirm_password: str = Form(...),
 ) -> Response:
+
     if password != confirm_password:
-        return RedirectResponse("/signup?error=password_mismatch", status_code=303)
+        return RedirectResponse(
+            "/signup?error=password_mismatch",
+            status_code=303
+        )
+
     try:
         user = create_user(email, full_name, password)
+
+        print(f"USER CREATED: {email}")
+
     except Exception as e:
-        print(f"Signup error: {e}")  # ← add this line
-        return RedirectResponse("/signup?error=email_exists", status_code=303)
+
+        print(f"SIGNUP ERROR: {repr(e)}")
+
+        return PlainTextResponse(
+            f"Signup failed: {repr(e)}",
+            status_code=500
+        )
+
     token = create_access_token({"sub": str(user["id"])})
+
     response = RedirectResponse("/", status_code=303)
-    response.set_cookie("access_token", token, httponly=True, samesite="lax", max_age=60 * 60 * 2)
+
+    response.set_cookie(
+        "access_token",
+        token,
+        httponly=True,
+        samesite="lax",
+        max_age=60 * 60 * 2,
+    )
+
     log_event("signup", "User created", user_id=user["id"])
+
     return response
+# @app.post("/auth/signup")
+# def auth_signup(
+#     full_name: str = Form(...),
+#     email: str = Form(...),
+#     password: str = Form(...),
+#     confirm_password: str = Form(...),
+# ) -> Response:
+#     if password != confirm_password:
+#         return RedirectResponse("/signup?error=password_mismatch", status_code=303)
+#     try:
+#         user = create_user(email, full_name, password)
+#     except Exception as e:
+#         print(f"Signup error: {e}")  # ← add this line
+#         return RedirectResponse("/signup?error=email_exists", status_code=303)
+#     token = create_access_token({"sub": str(user["id"])})
+#     response = RedirectResponse("/", status_code=303)
+#     response.set_cookie("access_token", token, httponly=True, samesite="lax", max_age=60 * 60 * 2)
+#     log_event("signup", "User created", user_id=user["id"])
+#     return response
 
 # @app.post("/auth/signup")
 # def auth_signup(
@@ -531,15 +573,56 @@ def auth_signup(
 #     return response
 
 
+# @app.post("/auth/login")
+# def auth_login(email: str = Form(...), password: str = Form(...)) -> Response:
+#     user = authenticate_user(email, password)
+#     if not user:
+#         return RedirectResponse("/login?error=invalid_credentials", status_code=303)
+#     token = create_access_token({"sub": str(user["id"])})
+#     response = RedirectResponse("/", status_code=303)
+#     response.set_cookie("access_token", token, httponly=True, samesite="lax", max_age=60 * 60 * 2)
+#     log_event("login", "User logged in", user_id=user["id"])
+#     return response
+
 @app.post("/auth/login")
-def auth_login(email: str = Form(...), password: str = Form(...)) -> Response:
-    user = authenticate_user(email, password)
-    if not user:
-        return RedirectResponse("/login?error=invalid_credentials", status_code=303)
+def auth_login(
+    email: str = Form(...),
+    password: str = Form(...),
+) -> Response:
+
+    try:
+        user = authenticate_user(email, password)
+
+        if not user:
+            print(f"LOGIN FAILED: Invalid credentials for {email}")
+
+            return PlainTextResponse(
+                "Invalid credentials",
+                status_code=401
+            )
+
+    except Exception as e:
+        print(f"LOGIN ERROR: {repr(e)}")
+
+        return PlainTextResponse(
+            f"Login failed: {repr(e)}",
+            status_code=500
+        )
+
     token = create_access_token({"sub": str(user["id"])})
+
     response = RedirectResponse("/", status_code=303)
-    response.set_cookie("access_token", token, httponly=True, samesite="lax", max_age=60 * 60 * 2)
+
+    response.set_cookie(
+        "access_token",
+        token,
+        httponly=True,
+        samesite="lax",
+        max_age=60 * 60 * 2,
+    )
+
     log_event("login", "User logged in", user_id=user["id"])
+
     return response
 
 
