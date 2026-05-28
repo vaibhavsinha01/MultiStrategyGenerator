@@ -26,9 +26,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+# def _connect():
+#     return psycopg2.connect(DATABASE_URL)
 def _connect():
-    return psycopg2.connect(DATABASE_URL)
-
+    print(f"Connecting to DB: {DATABASE_URL[:60]}...")
+    return psycopg2.connect(DATABASE_URL, sslmode="require")
 
 def init_db() -> None:
     with _connect() as conn, conn.cursor() as cur:
@@ -64,13 +66,29 @@ def init_db() -> None:
         )
 
 
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+# def hash_password(password: str) -> str:
+#     return pwd_context.hash(password)
 
+def hash_password(password: str) -> str:
+    try:
+        hashed = pwd_context.hash(password)
+        print("PASSWORD HASH SUCCESS")
+        return hashed
+    except Exception as e:
+        print(f"HASH PASSWORD ERROR: {repr(e)}")
+        raise
+
+# def verify_password(password: str, hashed_password: str) -> bool:
+#     return pwd_context.verify(password, hashed_password)
 
 def verify_password(password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(password, hashed_password)
-
+    try:
+        result = pwd_context.verify(password, hashed_password)
+        print(f"VERIFY PASSWORD RESULT: {result}")
+        return result
+    except Exception as e:
+        print(f"VERIFY PASSWORD ERROR: {repr(e)}")
+        raise
 
 def get_user_by_email(email: str) -> dict[str, Any] | None:
     with _connect() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -86,18 +104,45 @@ def get_user_by_id(user_id: int) -> dict[str, Any] | None:
         return dict(row) if row else None
 
 
+# def create_user(email: str, full_name: str, password: str) -> dict[str, Any]:
+#     with _connect() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+#         cur.execute(
+#             """
+#             INSERT INTO users (email, full_name, hashed_password)
+#             VALUES (%s, %s, %s)
+#             RETURNING id, email, full_name, created_at
+#             """,
+#             (email.strip().lower(), full_name.strip(), hash_password(password)),
+#         )
+#         return dict(cur.fetchone())
 def create_user(email: str, full_name: str, password: str) -> dict[str, Any]:
+
+    print(f"Creating user: {email}")
+
     with _connect() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+
+        hashed = hash_password(password)
+
+        print(f"HASH GENERATED: {hashed[:20]}")
+
         cur.execute(
             """
             INSERT INTO users (email, full_name, hashed_password)
             VALUES (%s, %s, %s)
             RETURNING id, email, full_name, created_at
             """,
-            (email.strip().lower(), full_name.strip(), hash_password(password)),
+            (
+                email.strip().lower(),
+                full_name.strip(),
+                hashed,
+            ),
         )
-        return dict(cur.fetchone())
 
+        user = dict(cur.fetchone())
+
+        print(f"USER INSERTED: {user}")
+
+        return user
 
 def authenticate_user(email: str, password: str) -> dict[str, Any] | None:
     user = get_user_by_email(email)
