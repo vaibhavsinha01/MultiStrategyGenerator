@@ -12,8 +12,10 @@ from pathlib import Path
 from main import run
 
 
-DEFAULT_SYMBOLS = ("btcusdt","ethusdt","xrpusdt","solusdt")
-DEFAULT_TIMEFRAMES = ("15m", "30m", "1h", "4h", "1d")
+# DEFAULT_SYMBOLS = ("btcusdt","ethusdt","xrpusdt","solusdt")
+DEFAULT_SYMBOLS = ("btcusdt","_")
+# DEFAULT_TIMEFRAMES = ("15m", "30m", "1h", "4h", "1d")
+DEFAULT_TIMEFRAMES = ("15m","_")
 
 def parse_csv_list(value: str) -> list[str]:
     return [item.strip().lower() for item in value.split(",") if item.strip()]
@@ -26,10 +28,10 @@ def main() -> None:
     parser.add_argument("--timeframes", default=",".join(DEFAULT_TIMEFRAMES))
     parser.add_argument("--data-dir", default="data")
     parser.add_argument("--out", default=r"results\strategy_results_unified.csv")
-    parser.add_argument("--n", type=int, default=50000, help="Strategies to generate per run")
+    parser.add_argument("--n", type=int, default=25000, help="Strategies to generate per run")
     parser.add_argument("--top", type=int, default=2000, help="Top N to validate per run")
     parser.add_argument("--workers", type=int, default=13)
-    parser.add_argument("--seed", type=int, default=49)
+    parser.add_argument("--seed", type=int, default=719)
     parser.add_argument(
         "--overwrite-first",
         action="store_true",
