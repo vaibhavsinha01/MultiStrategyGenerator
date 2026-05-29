@@ -714,7 +714,7 @@ async def api_chatbot(request: Request, user: dict = Depends(get_current_user)) 
         best = report["top"][0]
         risk_note = (
             f" Best validated strategy has train Sharpe {best['train']['sharpe']:.2f}, "
-            f"test Sharpe {best['test']['sharpe']:.2f}, test return {best['test']['returnPct']:.2f}%, "
+            f"test Sharpe {best['test']['sharpe']:.2f}, test return {best['test']['returnzPct']:.2f}%, "
             f"and {best['test']['trades']} test trades."
         )
     answer = (

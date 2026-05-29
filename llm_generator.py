@@ -161,8 +161,8 @@ def build_document_payload(
         },
         "backtestContext": {
             "initialCash":       1_000_000,
-            "commission":        "0.2%",
-            "trainTestSplit":    "70% train / 30% test",
+            "commission":        "0.1%",
+            "trainTestSplit":    "80% train / 20% test",
             "regimeModel":       "GaussianNB on OHLCV volatility, range, trend, efficiency, and volume features",
             "tradeAttribution":  "Regime metrics attributed by the regime active on each trade entry bar.",
         },
