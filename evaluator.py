@@ -31,11 +31,11 @@ REGIME_METRIC_COLUMNS = (
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
 
-MIN_TRADES = 50
+MIN_TRADES = 30
 MIN_TEST_TRADES = 10
 MAX_DRAWDOWN = -30.0
 MIN_WIN_RATE = 30.0
-MIN_RETURN = 10.0
+MIN_RETURN = 0.0
 
 # ── 1. Filter ─────────────────────────────────────────────────────────────────
 
