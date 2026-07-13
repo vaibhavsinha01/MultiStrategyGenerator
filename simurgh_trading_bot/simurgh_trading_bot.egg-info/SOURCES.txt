@@ -1,0 +1,13 @@
+README.md
+pyproject.toml
+simurgh_trading_bot/__init__.py
+simurgh_trading_bot/broker.py
+simurgh_trading_bot/feature_engineering.py
+simurgh_trading_bot/main_ethusdt_1h_8eb5cf02.py
+simurgh_trading_bot/signals.py
+simurgh_trading_bot/strategy.py
+simurgh_trading_bot.egg-info/PKG-INFO
+simurgh_trading_bot.egg-info/SOURCES.txt
+simurgh_trading_bot.egg-info/dependency_links.txt
+simurgh_trading_bot.egg-info/requires.txt
+simurgh_trading_bot.egg-info/top_level.txt

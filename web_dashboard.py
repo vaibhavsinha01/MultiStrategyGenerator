@@ -27,12 +27,20 @@ from tools_llm_strategy import generate_strategy_main_py_source
 from auth_db import (
     authenticate_user,
     create_access_token,
+    create_or_get_google_user,
     create_user,
+    ensure_admin_user,
     get_current_user,
     init_db,
     log_event,
+    optional_user,
+    record_subscription,
     save_prediction,
+    set_user_premium,
+    user_has_premium,
 )
+from google_auth import build_google_auth_url, exchange_code_for_user, new_oauth_state
+from payments import capture_order, create_checkout_order
 from ml_pipeline import predict_probabilities
 from risk_validation import latest_validation_summary
 
@@ -52,6 +60,7 @@ ROOT          = Path(__file__).resolve().parent
 DATA_DIR      = ROOT / "data"
 RESULTS_DIR   = ROOT / "results"
 DASHBOARD_DIR = ROOT / "dashboard"
+IMAGES_DIR    = ROOT / "images"
 PORT          = 10000
 # HOST          = "0.0.0.0"
 HOST          = "127.0.0.1"
@@ -447,7 +456,6 @@ def _strategy_pdf(symbol: str, timeframe: str, dataset: str, strategy_id: str) -
 
 app = FastAPI(title="MultiStrategyGenerator Dashboard")
 
-
 # @app.on_event("startup")
 # def _startup() -> None:
 #     DATA_DIR.mkdir(exist_ok=True)
@@ -465,28 +473,57 @@ def _startup() -> None:
     DASHBOARD_DIR.mkdir(exist_ok=True)
     try:
         init_db()
+        ensure_admin_user()
         print("PostgreSQL init OK")
     except Exception as exc:
         print(f"PostgreSQL init FAILED: {exc}")
+
+
+def _request_base(request: Request) -> str:
+    import os
+    base = os.environ.get("APP_BASE_URL", "").strip()
+    if base:
+        return base.rstrip("/")
+    return str(request.base_url).rstrip("/")
+
+
+def _auth_cookie_response(user: dict, redirect_to: str = "/") -> RedirectResponse:
+    token = create_access_token({"sub": str(user["id"])})
+    response = RedirectResponse(redirect_to, status_code=303)
+    response.set_cookie(
+        "access_token",
+        token,
+        httponly=True,
+        samesite="lax",
+        max_age=60 * 60 * 2,
+    )
+    return response
 
 # ── pages ─────────────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request) -> Response:
-    try:
-        get_current_user(request)
-    except HTTPException:
-        return RedirectResponse("/login", status_code=303)
     return FileResponse(DASHBOARD_DIR / "index.html", media_type="text/html")
 
 
 @app.get("/index.html", response_class=HTMLResponse)
 def index_html(request: Request) -> Response:
-    try:
-        get_current_user(request)
-    except HTTPException:
-        return RedirectResponse("/login", status_code=303)
     return FileResponse(DASHBOARD_DIR / "index.html", media_type="text/html")
+
+
+@app.get("/app", response_class=HTMLResponse)
+def app_page(user: dict = Depends(get_current_user)) -> Response:
+    return FileResponse(DASHBOARD_DIR / "app.html", media_type="text/html")
+
+
+@app.get("/images/{path:path}")
+def image_files(path: str) -> Response:
+    file_path = (IMAGES_DIR / path).resolve()
+    if IMAGES_DIR not in file_path.parents and file_path != IMAGES_DIR:
+        return Response(status_code=404)
+    if not file_path.exists() or not file_path.is_file():
+        return Response(status_code=404)
+    return FileResponse(file_path)
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -528,7 +565,7 @@ def auth_signup(
 
     token = create_access_token({"sub": str(user["id"])})
 
-    response = RedirectResponse("/", status_code=303)
+    response = RedirectResponse("/app", status_code=303)
 
     response.set_cookie(
         "access_token",
@@ -619,7 +656,7 @@ def auth_login(
 
     token = create_access_token({"sub": str(user["id"])})
 
-    response = RedirectResponse("/", status_code=303)
+    response = RedirectResponse("/app", status_code=303)
 
     response.set_cookie(
         "access_token",
@@ -636,9 +673,109 @@ def auth_login(
 
 @app.get("/logout")
 def logout() -> Response:
-    response = RedirectResponse("/login", status_code=303)
+    response = RedirectResponse("/", status_code=303)
     response.delete_cookie("access_token")
     return response
+
+
+@app.get("/api/me")
+def api_me(request: Request) -> Response:
+    user = optional_user(request)
+    if not user:
+        return _json({"authenticated": False})
+    return _json({
+        "authenticated": True,
+        "email": user.get("email"),
+        "full_name": user.get("full_name"),
+        "is_admin": bool(user.get("is_admin")),
+        "is_premium": user_has_premium(user),
+    })
+
+
+@app.get("/auth/google")
+def auth_google(request: Request) -> Response:
+    try:
+        state = new_oauth_state()
+        url = build_google_auth_url(_request_base(request), state)
+    except Exception as exc:
+        return RedirectResponse(f"/login?error=google_config&msg={exc}", status_code=303)
+    response = RedirectResponse(url, status_code=303)
+    response.set_cookie("oauth_state", state, httponly=True, samesite="lax", max_age=600)
+    return response
+
+
+@app.get("/auth/google/callback")
+def auth_google_callback(
+    request: Request,
+    code: str = "",
+    state: str = "",
+    error: str = "",
+) -> Response:
+    if error:
+        return RedirectResponse("/login?error=google_denied", status_code=303)
+    saved_state = request.cookies.get("oauth_state", "")
+    if not code or not state or state != saved_state:
+        return RedirectResponse("/login?error=google_state", status_code=303)
+    try:
+        profile = exchange_code_for_user(code, _request_base(request))
+        user = create_or_get_google_user(
+            email=profile.get("email", ""),
+            full_name=profile.get("name", ""),
+            google_id=profile.get("sub", ""),
+        )
+        log_event("login", "Google OAuth login", user_id=user["id"])
+        response = _auth_cookie_response(user, "/app")
+        response.delete_cookie("oauth_state")
+        return response
+    except Exception as exc:
+        print(f"GOOGLE OAUTH ERROR: {exc}")
+        return RedirectResponse("/login?error=google_failed", status_code=303)
+
+
+@app.post("/api/payments/create")
+def api_payment_create(user: dict = Depends(get_current_user)) -> Response:
+    if user_has_premium(user):
+        return _json({"already_premium": True, "redirect": "/app"})
+    try:
+        order = create_checkout_order(user["id"])
+        approve = next(
+            (l.get("href") for l in order.get("links", []) if l.get("rel") == "approve"),
+            None,
+        )
+        if not approve:
+            return _json({"error": "PayPal approval link missing"}, status=500)
+        return _json({"order_id": order.get("id"), "approval_url": approve})
+    except Exception as exc:
+        return _json({"error": str(exc)}, status=500)
+
+
+@app.get("/payment/success")
+def payment_success(request: Request, token: str = "") -> Response:
+    user = optional_user(request)
+    if not user or not token:
+        return RedirectResponse("/?payment=failed", status_code=303)
+    try:
+        result = capture_order(token)
+        if result.get("status") == "COMPLETED":
+            set_user_premium(user["id"], True)
+            amount = 0.0
+            currency = "USD"
+            units = (result.get("purchase_units") or [{}])[0]
+            captures = ((units.get("payments") or {}).get("captures") or [{}])
+            if captures:
+                amount = float(captures[0].get("amount", {}).get("value", 0) or 0)
+                currency = captures[0].get("amount", {}).get("currency_code", "USD")
+            record_subscription(user["id"], token, "completed", amount, currency)
+            log_event("payment", "PayPal capture success", user_id=user["id"], metadata={"order_id": token})
+            return RedirectResponse("/app?payment=success", status_code=303)
+    except Exception as exc:
+        print(f"PAYMENT CAPTURE ERROR: {exc}")
+    return RedirectResponse("/?payment=failed", status_code=303)
+
+
+@app.get("/payment/cancel")
+def payment_cancel() -> Response:
+    return RedirectResponse("/?payment=cancelled", status_code=303)
 
 
 @app.get("/dashboard/{path:path}")
@@ -764,13 +901,15 @@ def api_strategy_code(
     strategyId: str = "",
     user: dict = Depends(get_current_user),
 ) -> Response:
+    if not user_has_premium(user):
+        return _json({"error": "Premium plan required. Upgrade via Pricing on the home page."}, status=402)
     if not strategyId:
         return _json({"error": "strategyId is required"}, status=400)
     payload, err = _strategy_document_payload(symbol, timeframe, dataset, strategyId)
     if payload is None:
         return _json({"error": err}, status=404)
     try:
-        source = generate_strategy_main_py_source(payload, use_llm=True)
+        source = generate_strategy_main_py_source(payload, use_llm=False)
     except Exception as exc:
         return _json({"error": f"Strategy code generation failed: {exc}"}, status=500)
     filename = f"main_{payload['symbol'].lower()}_{payload['timeframe'].lower()}_{strategyId}.py"
@@ -792,6 +931,8 @@ def api_document(
     strategyId: str = "",
     user: dict = Depends(get_current_user),
 ) -> Response:
+    if not user_has_premium(user):
+        return _json({"error": "Premium plan required. Upgrade via Pricing on the home page."}, status=402)
     if not strategyId:
         return _json({"error": "strategyId is required"}, status=400)
     try:

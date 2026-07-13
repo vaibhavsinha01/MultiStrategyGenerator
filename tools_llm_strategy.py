@@ -1,10 +1,11 @@
 import json
 import math
+import pprint
 import re
 import time
 import hmac
 import hashlib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from urllib.parse import urlencode
 from typing import Any, Dict, Optional
 
@@ -868,9 +869,12 @@ class StrategyRuntimeParams:
     testnet: bool = True
     trade_side: str = "BUY"
     scan_interval_seconds: int = 60
+    signal_codes: list[str] = field(default_factory=list)
 
     def to_code_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        data["signal_codes"] = data.get("signal_codes") or []
+        return data
 
 
 def binance_symbol_from_dashboard_symbol(symbol: str) -> str:
@@ -913,6 +917,7 @@ def strategy_runtime_params_from_document_payload(payload: dict) -> StrategyRunt
     tp_pct = tp_dec * 100.0 if tp_dec > 0 else 2.0
     sl_pct = sl_dec * 100.0 if sl_dec > 0 else 2.0
     direction = str(strat.get("direction", "bull"))
+    signal_codes = [p.strip() for p in str(strat.get("signals", "") or "").split("|") if p.strip()]
     return StrategyRuntimeParams(
         strategy_id=str(strat.get("id", "unknown")),
         direction=direction,
@@ -921,6 +926,7 @@ def strategy_runtime_params_from_document_payload(payload: dict) -> StrategyRunt
         take_profit_pct=tp_pct,
         stop_loss_pct=sl_pct,
         trade_side=trade_side_from_direction(direction),
+        signal_codes=signal_codes,
     )
 
 
@@ -983,98 +989,77 @@ def _build_strategy_code_prompt(ctx: dict[str, Any]) -> str:
         "You are a Python quant engineer. Output ONE complete Python source file for a small Binance USDT-M "
         "futures trading script.\n\n"
         "Hard rules:\n"
-        "- Import ONLY `SimpleStrategy` from `tools_llm_strategy`. Do NOT copy or redefine BinanceBroker or "
-        "any HTTP/signing code.\n"
+        "- Import ONLY `SimpleStrategy` from `simurgh_trading_bot`. Do NOT copy or redefine BinanceBroker.\n"
         "- Define `STRATEGY_PARAMS` as a Python dict literal whose keys and values match the JSON object "
-        "`runtime` in the context below (use the same numbers and strings).\n"
-        "- The script MUST be runnable as-is and include all required imports and a main loop.\n"
-        "- Define a subclass `class GeneratedStrategy(SimpleStrategy):` that overrides `compute_indicators` and "
-        "`generate_signals`. Use pandas. Base indicator logic on `signalHints` where reasonable; if a hint cannot "
-        "be implemented from OHLCV alone, add a short comment and a conservative placeholder.\n"
-        "- Do NOT override `place_simple_bracket` or other BinanceBroker methods.\n"
-        "- In `if __name__ == '__main__':`, read `BINANCE_API_KEY` and `BINANCE_API_SECRET` from `os.environ`, "
-        "build `GeneratedStrategy(...)` with keyword args: api_key, api_secret, symbol, interval, quantity, testnet, "
-        "take_profit_pct, stop_loss_pct, trade_side — all taken from STRATEGY_PARAMS.\n"
-        "- Before constructing the bot, use exchangeInfo via a temporary SimpleStrategy instance to resolve "
-        "minQty/stepSize and quantize `quantity` up to at least minQty.\n"
-        "- Optionally call `set_leverage(symbol, leverage)` once inside try/except using STRATEGY_PARAMS['leverage'].\n"
-        "- Loop: `while True:` call `execute_strategy()`, then `time.sleep(STRATEGY_PARAMS['scan_interval_seconds'])` "
-        "with basic exception handling.\n\n"
+        "`runtime` in the context below (include signal_codes list).\n"
+        "- The script MUST be runnable after `pip install -e simurgh_trading_bot`.\n"
+        "- Define `class GeneratedStrategy(SimpleStrategy):` only if custom logic is needed; otherwise pass "
+        "signal_codes from STRATEGY_PARAMS to SimpleStrategy.\n"
+        "- In `if __name__ == '__main__':`, read `BINANCE_API_KEY` and `BINANCE_API_SECRET` from `os.environ`.\n"
+        "- Resolve minQty/stepSize via exchangeInfo before starting the loop.\n"
+        "- Loop: `while True:` call `execute_strategy()`, then sleep scan_interval_seconds.\n\n"
         "Return ONLY the Python file inside one markdown code fence: ```python ... ```.\n\n"
         f"Context JSON:\n{json.dumps(ctx, indent=2)}"
     )
 
 
+def _python_literal(value: Any) -> str:
+    """Render Python dict/list with True/False/None (not JSON true/false/null)."""
+    return pprint.pformat(value, width=100, sort_dicts=False)
+
+
 def _fallback_main_py_source(ctx: dict[str, Any]) -> str:
     r = ctx["runtime"]
-    blob = json.dumps(r, indent=2)
+    blob = _python_literal(r)
     return f'''"""
-Auto-generated Binance USDT-M futures bot (template).
+Auto-generated Simurgh Capital trading bot.
 Strategy id: {r["strategy_id"]}
-Run from the MultiStrategyGenerator project root:
-  set BINANCE_API_KEY / BINANCE_API_SECRET then:  python main.py
+
+Setup:
+  cd simurgh_trading_bot && pip install -e .
+  set BINANCE_API_KEY / BINANCE_API_SECRET
+  python run_strategy.py
 """
 import os
 import time
 
-from tools_llm_strategy import SimpleStrategy
+from simurgh_trading_bot.strategy import SimpleStrategy
 
 
 STRATEGY_PARAMS = {blob}
 
-def _fallback_min_qty(symbol: str) -> float:
-    sym = symbol.upper()
-    if sym == "BTCUSDT": return 0.001
-    if sym == "ETHUSDT": return 0.01
-    if sym == "SOLUSDT": return 1.0
-    return 0.001
 
 def _resolve_quantity(symbol: str, desired: float, testnet: bool) -> float:
-    # Public exchangeInfo; no auth required, key can be blank for this call.
-    tmp = SimpleStrategy(api_key="", api_secret="", symbol=symbol, interval="1m", quantity=desired, testnet=testnet)
-    min_qty, step = 0.0, 0.0
+    tmp = SimpleStrategy(api_key="", api_secret="", symbol=symbol, testnet=testnet)
     try:
         min_qty, step = tmp.get_symbol_lot_size(symbol)
+        q = max(float(desired), float(min_qty))
+        if step > 0:
+            q = tmp.quantize_to_step(q, step)
+        return q
     except Exception:
-        min_qty = _fallback_min_qty(symbol)
-    q = max(float(desired), float(min_qty))
-    if step and step > 0:
-        q = tmp.quantize_to_step(q, step)
-        if q < min_qty:
-            q = tmp.quantize_to_step(min_qty, step)
-    return q
+        return float(desired)
 
 
-class FallbackStrategy(SimpleStrategy):
-    """Minimal RSI placeholder — replace with logic matching your signal stack."""
-
-    def compute_indicators(self, df):
-        delta = df["close"].diff()
-        gain = delta.clip(lower=0)
-        loss = -delta.clip(upper=0)
-        avg_gain = gain.rolling(14).mean()
-        avg_loss = loss.rolling(14).mean()
-        rs = avg_gain / avg_loss.replace(0, 1e-12)
-        df = df.copy()
-        df["rsi_14"] = 100 - (100 / (1 + rs))
-        return df
-
-    def generate_signals(self, df):
-        latest = df.iloc[-1]
-        if STRATEGY_PARAMS.get("trade_side", "BUY") == "SELL":
-            return float(latest["rsi_14"]) > 65
-        return float(latest["rsi_14"]) < 35
+class GeneratedStrategy(SimpleStrategy):
+    """Uses signal_codes from STRATEGY_PARAMS with the simurgh_trading_bot signal registry."""
+    pass
 
 
 if __name__ == "__main__":
+    api_key = os.environ.get("BINANCE_API_KEY", "")
+    api_secret = os.environ.get("BINANCE_API_SECRET", "")
+    if not api_key or not api_secret:
+        raise SystemExit("Set BINANCE_API_KEY and BINANCE_API_SECRET in your environment.")
+
     qty = _resolve_quantity(
         STRATEGY_PARAMS["symbol_binance"],
         float(STRATEGY_PARAMS.get("quantity", 0.01)),
         bool(STRATEGY_PARAMS.get("testnet", True)),
     )
-    bot = FallbackStrategy(
-        api_key=os.environ.get("BINANCE_API_KEY", "YOUR_API_KEY"),
-        api_secret=os.environ.get("BINANCE_API_SECRET", "YOUR_API_SECRET"),
+    bot = GeneratedStrategy(
+        api_key=api_key,
+        api_secret=api_secret,
         symbol=STRATEGY_PARAMS["symbol_binance"],
         interval=STRATEGY_PARAMS["interval"],
         quantity=qty,
@@ -1082,6 +1067,7 @@ if __name__ == "__main__":
         take_profit_pct=float(STRATEGY_PARAMS["take_profit_pct"]),
         stop_loss_pct=float(STRATEGY_PARAMS["stop_loss_pct"]),
         trade_side=str(STRATEGY_PARAMS.get("trade_side", "BUY")),
+        signal_codes=list(STRATEGY_PARAMS.get("signal_codes", [])),
     )
     try:
         bot.set_leverage(bot.symbol, int(STRATEGY_PARAMS.get("leverage", 5)))
@@ -1112,7 +1098,7 @@ def generate_strategy_main_py_source(payload: dict, *, use_llm: bool = True) -> 
 
         raw = _call_gemini(_build_strategy_code_prompt(ctx), max_output_tokens=8192)
         code = _strip_markdown_python_fence(raw)
-        if "SimpleStrategy" not in code or "def generate_signals" not in code:
+        if "SimpleStrategy" not in code or "STRATEGY_PARAMS" not in code:
             return _fallback_main_py_source(ctx)
         return code
     except Exception:

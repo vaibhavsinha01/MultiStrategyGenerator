@@ -6,6 +6,7 @@ from typing import Any
 
 import psycopg2
 import psycopg2.extras
+from urllib.parse import urlparse
 from fastapi import Depends, HTTPException, Request, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -29,8 +30,27 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # def _connect():
 #     return psycopg2.connect(DATABASE_URL)
 def _connect():
+    """
+    Connect to Postgres.
+
+    - Localhost typically does NOT run with SSL, so forcing sslmode=require breaks local dev.
+    - Hosted providers often require SSL.
+    """
     print(f"Connecting to DB: {DATABASE_URL[:60]}...")
-    return psycopg2.connect(DATABASE_URL, sslmode="require")
+
+    sslmode = os.environ.get("DATABASE_SSLMODE", "").strip().lower()
+    if not sslmode:
+        try:
+            parsed = urlparse(DATABASE_URL)
+            host = (parsed.hostname or "").lower()
+            if host in {"localhost", "127.0.0.1", "::1"}:
+                sslmode = "disable"
+            else:
+                sslmode = "require"
+        except Exception:
+            sslmode = "require"
+
+    return psycopg2.connect(DATABASE_URL, sslmode=sslmode)
 
 def init_db() -> None:
     with _connect() as conn, conn.cursor() as cur:
@@ -62,8 +82,91 @@ def init_db() -> None:
                 payload JSONB NOT NULL DEFAULT '{}'::jsonb,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                provider TEXT NOT NULL DEFAULT 'paypal',
+                status TEXT NOT NULL,
+                order_id TEXT,
+                amount NUMERIC,
+                currency TEXT DEFAULT 'USD',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
             """
         )
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN NOT NULL DEFAULT FALSE")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT")
+        cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_google_id_idx ON users(google_id) WHERE google_id IS NOT NULL")
+
+
+def user_has_premium(user: dict[str, Any]) -> bool:
+    return bool(user.get("is_admin") or user.get("is_premium"))
+
+
+def set_user_premium(user_id: int, premium: bool = True) -> None:
+    with _connect() as conn, conn.cursor() as cur:
+        cur.execute("UPDATE users SET is_premium=%s WHERE id=%s", (premium, user_id))
+
+
+def record_subscription(user_id: int, order_id: str, status: str, amount: float, currency: str = "USD") -> None:
+    with _connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO subscriptions (user_id, provider, status, order_id, amount, currency)
+            VALUES (%s, 'paypal', %s, %s, %s, %s)
+            """,
+            (user_id, status, order_id, amount, currency),
+        )
+
+
+def ensure_admin_user() -> None:
+    email = os.environ.get("ADMIN_EMAIL", "vaibhavrajsinha099@gmail.com").strip().lower()
+    password = os.environ.get("ADMIN_PASSWORD", "Hello#2004")
+    full_name = os.environ.get("ADMIN_NAME", "Vaibhav Raj Sinha")
+    existing = get_user_by_email(email)
+    if existing:
+        with _connect() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE users
+                SET is_admin=TRUE, is_premium=TRUE, full_name=%s, hashed_password=%s
+                WHERE id=%s
+                """,
+                (full_name, hash_password(password), existing["id"]),
+            )
+        return
+    user = create_user(email, full_name, password)
+    with _connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            "UPDATE users SET is_admin=TRUE, is_premium=TRUE WHERE id=%s",
+            (user["id"],),
+        )
+
+
+def create_or_get_google_user(email: str, full_name: str, google_id: str) -> dict[str, Any]:
+    email = email.strip().lower()
+    with _connect() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("SELECT * FROM users WHERE google_id=%s OR lower(email)=lower(%s) LIMIT 1", (google_id, email))
+        row = cur.fetchone()
+        if row:
+            user = dict(row)
+            cur.execute(
+                "UPDATE users SET google_id=%s, full_name=%s WHERE id=%s",
+                (google_id, full_name.strip() or user.get("full_name", ""), user["id"]),
+            )
+            cur.execute("SELECT * FROM users WHERE id=%s", (user["id"],))
+            return dict(cur.fetchone())
+        placeholder_pw = hash_password(os.urandom(24).hex())
+        cur.execute(
+            """
+            INSERT INTO users (email, full_name, hashed_password, google_id)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, email, full_name, is_admin, is_premium, google_id, created_at
+            """,
+            (email, full_name.strip() or email.split("@")[0], placeholder_pw, google_id),
+        )
+        return dict(cur.fetchone())
 
 
 # def hash_password(password: str) -> str:
