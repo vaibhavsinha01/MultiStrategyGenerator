@@ -515,6 +515,9 @@ def index_html(request: Request) -> Response:
 def app_page(user: dict = Depends(get_current_user)) -> Response:
     return FileResponse(DASHBOARD_DIR / "app.html", media_type="text/html")
 
+@app.get("/document", response_class=HTMLResponse)
+def document_page(user: dict = Depends(get_current_user)) -> Response:
+    return FileResponse(DASHBOARD_DIR / "document.html", media_type="text/html")
 
 @app.get("/images/{path:path}")
 def image_files(path: str) -> Response:

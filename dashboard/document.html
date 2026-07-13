@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Setup Guide — Simurgh Capital</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #F8FAFC;
+      --card: #ffffff;
+      --ink: #0b1220;
+      --muted: #64748b;
+      --line: rgba(15, 23, 42, 0.08);
+      --shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+      --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.06);
+      --radius: 22px;
+      --blue: #2563eb;
+      --blue-soft: rgba(37, 99, 235, 0.08);
+      --green: #059669;
+      --green-soft: rgba(5, 150, 105, 0.1);
+      --red: #dc2626;
+      --red-soft: rgba(220, 38, 38, 0.1);
+      --code-bg: #0b1220;
+      --code-ink: #e2e8f0;
+      --code-muted: #64748b;
+      --code-accent: #60a5fa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 500px at 80% 0%, rgba(37,99,235,0.10), transparent 55%),
+        var(--bg);
+    }
+    a { color: inherit; text-decoration: none; }
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+    code, .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      backdrop-filter: blur(12px);
+      background: rgba(248, 250, 252, 0.85);
+      border-bottom: 1px solid var(--line);
+    }
+    .nav-inner {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; }
+    .logo {
+      width: 34px; height: 34px; border-radius: 12px;
+      background: linear-gradient(135deg, #2563eb, #60a5fa);
+      box-shadow: 0 8px 18px rgba(37,99,235,0.22);
+    }
+    .nav-actions { display: flex; gap: 10px; align-items: center; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 10px 16px; border-radius: 999px; font-weight: 700; font-size: 13px;
+      border: 1px solid var(--line); background: #fff; cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-soft); }
+    .btn-primary {
+      background: linear-gradient(135deg, #2563eb, #60a5fa);
+      color: #fff; border: 0;
+      box-shadow: 0 12px 28px rgba(37,99,235,0.22);
+    }
+
+    main { padding: 32px 0 72px; }
+    .page-head { margin-bottom: 24px; }
+    .page-head h1 { margin: 0 0 8px; font-size: 32px; letter-spacing: -0.02em; }
+    .page-head p { margin: 0; color: var(--muted); font-size: 15px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 96px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      padding: 18px;
+    }
+    .toc span {
+      display: block; font-size: 11px; font-weight: 800; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;
+    }
+    .toc a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      color: var(--muted); transition: background 0.15s ease, color 0.15s ease;
+    }
+    .toc a:hover { background: var(--blue-soft); color: var(--blue); }
+    .toc a .num {
+      display: grid; place-items: center;
+      width: 20px; height: 20px; border-radius: 6px;
+      background: rgba(15,23,42,0.06); font-size: 11px; font-weight: 800;
+      color: var(--ink); flex: none;
+    }
+
+    .steps { display: flex; flex-direction: column; gap: 18px; }
+
+    .step-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      padding: 26px 26px 24px;
+      scroll-margin-top: 90px;
+      transition: box-shadow 0.2s ease;
+    }
+    .step-card:hover { box-shadow: var(--shadow); }
+    .step-head { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+    .step-badge {
+      display: grid; place-items: center; flex: none;
+      width: 36px; height: 36px; border-radius: 12px;
+      background: var(--blue-soft); color: var(--blue);
+      font-weight: 800; font-size: 14px;
+    }
+    .step-head h2 { margin: 0; font-size: 19px; letter-spacing: -0.01em; }
+    .step-body { padding-left: 50px; color: #334155; font-size: 14.5px; line-height: 1.65; }
+    .step-body p { margin: 0 0 12px; }
+    .step-body ul { margin: 0 0 12px; padding-left: 20px; }
+    .step-body li { margin-bottom: 6px; }
+
+    .codeblock {
+      background: var(--code-bg);
+      color: var(--code-ink);
+      border-radius: 14px;
+      padding: 16px 18px;
+      font-size: 13px;
+      line-height: 1.7;
+      overflow-x: auto;
+      position: relative;
+      margin: 4px 0 14px;
+    }
+    .codeblock .comment { color: var(--code-muted); }
+    .codeblock .accent { color: var(--code-accent); }
+    .copy-btn {
+      position: absolute; top: 10px; right: 10px;
+      padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700;
+      background: rgba(255,255,255,0.08); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.12);
+      cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,0.16); color: #fff; }
+    .copy-btn.copied { color: var(--green); border-color: rgba(5,150,105,0.4); }
+
+    .inline-code {
+      background: rgba(15,23,42,0.06); color: var(--ink);
+      padding: 2px 7px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    }
+
+    .callout {
+      display: flex; gap: 12px; align-items: flex-start;
+      border-radius: 14px; padding: 14px 16px; margin: 4px 0 14px;
+      border: 1px solid var(--line); background: rgba(37,99,235,0.05);
+      font-size: 13.5px; line-height: 1.6;
+    }
+    .callout .ic { font-size: 16px; line-height: 1.5; }
+    .callout.warn { background: var(--red-soft); border-color: rgba(220,38,38,0.15); }
+    .callout.ok { background: var(--green-soft); border-color: rgba(5,150,105,0.15); }
+
+    .placeholder {
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .filename-example {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(15,23,42,0.06); border-radius: 10px;
+      padding: 4px 10px 4px 6px; font-size: 12.5px; margin: 2px 0;
+    }
+    .filename-example .tag {
+      background: var(--blue); color: #fff; font-size: 10px; font-weight: 800;
+      padding: 2px 7px; border-radius: 6px; text-transform: uppercase;
+    }
+
+    .cta-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+
+    .end-card {
+      text-align: center;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      padding: 30px 24px;
+      margin-top: 4px;
+    }
+    .end-card h3 { margin: 0 0 8px; font-size: 18px; }
+    .end-card p { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+
+    .fade-up {
+      opacity: 0; transform: translateY(12px);
+      animation: fadeUp 0.5s ease forwards;
+    }
+    @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+    .delay-1 { animation-delay: 0.05s; }
+    .delay-2 { animation-delay: 0.1s; }
+    .delay-3 { animation-delay: 0.15s; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; }
+      .step-body { padding-left: 0; margin-top: 14px; }
+    }
+    @media (max-width: 560px) {
+      .page-head h1 { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="/" class="brand">
+        <div class="logo"></div>
+        <span>Simurgh Capital</span>
+      </a>
+      <div class="nav-actions">
+        <a class="btn" href="/">Home</a>
+        <a class="btn" href="/app">Strategy Report</a>
+        <a class="btn" href="/logout">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="page-head fade-up">
+      <h1>Run your strategy</h1>
+      <p>Everything you need to take a strategy from the report to a running bot, in five steps.</p>
+    </div>
+
+    <div class="layout">
+      <aside class="toc fade-up delay-1">
+        <span>On this page</span>
+        <a href="#step-1"><span class="num">1</span> Create a Binance account</a>
+        <a href="#step-2"><span class="num">2</span> Install Python</a>
+        <a href="#step-3"><span class="num">3</span> Install the package</a>
+        <a href="#step-4"><span class="num">4</span> Set your API keys</a>
+        <a href="#step-5"><span class="num">5</span> Run your bot</a>
+      </aside>
+
+      <section class="steps">
+
+        <article class="step-card fade-up delay-1" id="step-1">
+          <div class="step-head">
+            <div class="step-badge">1</div>
+            <h2>Create a Binance account</h2>
+          </div>
+          <div class="step-body">
+            <p>Your bot places real orders through Binance, so you'll need an account and an API key pair before anything else.</p>
+            <ul>
+              <li>Sign up at <span class="inline-code">binance.com</span> and complete identity verification.</li>
+              <li>Go to <strong>Account → API Management</strong> and create a new API key.</li>
+              <li>Save the <strong>API Key</strong> and <strong>Secret Key</strong> somewhere safe — the secret is only shown once.</li>
+            </ul>
+            <div class="callout warn">
+              <span class="ic">⚠️</span>
+              <span>Never share your Secret Key or commit it to a file, repo, or chat. Treat it like a password.</span>
+            </div>
+            <div class="callout">
+              <span class="ic">💡</span>
+              <span>If you want to test without risking funds, enable a Binance Futures <strong>Testnet</strong> account instead and use testnet keys for now.</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="step-card fade-up delay-2" id="step-2">
+          <div class="step-head">
+            <div class="step-badge">2</div>
+            <h2>Install Python</h2>
+          </div>
+          <div class="step-body">
+            <p>You'll need Python 3.10 or newer installed on your machine.</p>
+            <ul>
+              <li>Download it from <span class="inline-code">python.org/downloads</span>.</li>
+              <li>On Windows, tick <strong>"Add python.exe to PATH"</strong> during install.</li>
+              <li>Confirm it worked by opening a terminal (PowerShell on Windows) and running:</li>
+            </ul>
+            <div class="codeblock">python --version</div>
+          </div>
+        </article>
+
+        <article class="step-card fade-up delay-2" id="step-3">
+          <div class="step-head">
+            <div class="step-badge">3</div>
+            <h2>Install the package</h2>
+          </div>
+          <div class="step-body">
+            <p>Install the strategy package with pip:</p>
+            <div class="codeblock" data-copy="pip install multistrategygenerator">pip install multistrategygenerator<button class="copy-btn">Copy</button></div>
+          </div>
+        </article>
+
+        <article class="step-card fade-up delay-3" id="step-4">
+          <div class="step-head">
+            <div class="step-badge">4</div>
+            <h2>Set your API keys</h2>
+          </div>
+          <div class="step-body">
+            <p>Your bot reads your Binance credentials from environment variables — this keeps them out of your code. In PowerShell, run:</p>
+            <div class="codeblock" data-copy='$env:BINANCE_API_KEY="Your_api_key"
+$env:BINANCE_API_SECRET="Your_secret_key"'><span class="accent">$env:</span>BINANCE_API_KEY=<span class="accent">"Your_api_key"</span>
+<span class="accent">$env:</span>BINANCE_API_SECRET=<span class="accent">"Your_secret_key"</span><button class="copy-btn">Copy</button></div>
+            <p>Replace <span class="placeholder">Your_api_key</span> and <span class="placeholder">Your_secret_key</span> with the values from Step 1.</p>
+            <div class="callout warn">
+              <span class="ic">⚠️</span>
+              <span>These environment variables only last for your current terminal session. Set them again each time you open a new terminal, before running your bot.</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="step-card fade-up delay-3" id="step-5">
+          <div class="step-head">
+            <div class="step-badge">5</div>
+            <h2>Run your bot</h2>
+          </div>
+          <div class="step-body">
+            <p>In the Strategy Report, use the <strong>Code</strong> button on any strategy row to download its Python file. Then, in the same terminal where you set your keys, run it:</p>
+            <div class="codeblock" data-copy="python filename.py">python filename.py<button class="copy-btn">Copy</button></div>
+            <p>For example, if your downloaded file is:</p>
+            <div class="filename-example">
+              <span class="tag">file</span>
+              <span class="mono">main_ethusd_15m_52b791ff.py</span>
+            </div>
+            <p>you would run:</p>
+            <div class="codeblock" data-copy="python main_ethusd_15m_52b791ff.py">python main_ethusd_15m_52b791ff.py<button class="copy-btn">Copy</button></div>
+            <div class="callout ok">
+              <span class="ic">✓</span>
+              <span>Press Enter and your strategy starts running, polling live prices and placing trades according to its rules.</span>
+            </div>
+          </div>
+        </article>
+
+        <div class="end-card fade-up delay-3">
+          <h3>Ready to find a strategy?</h3>
+          <p>Head back to the report to compare strategies and download the one you want to run.</p>
+          <div class="cta-row" style="justify-content: center;">
+            <a class="btn btn-primary" href="/app">Go to Strategy Report</a>
+          </div>
+        </div>
+
+      </section>
+    </div>
+  </main>
+
+  <script>
+    document.querySelectorAll(".codeblock[data-copy]").forEach((block) => {
+      const button = block.querySelector(".copy-btn");
+      if (!button) return;
+      button.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(block.dataset.copy);
+          button.textContent = "Copied";
+          button.classList.add("copied");
+          setTimeout(() => {
+            button.textContent = "Copy";
+            button.classList.remove("copied");
+          }, 1600);
+        } catch (e) {
+          button.textContent = "Failed";
+        }
+      });
+    });
+  </script>
+</body>
+</html>
