@@ -1,4 +1,16 @@
 fastapi
 uvicorn
 passlib[bcrypt]
+
+python-multipart
+itsdangerous
+
+google-genai
+
+python-dotenv
+
+reportlab
+
+pandas
+numpy
 polars>=1.0.0
