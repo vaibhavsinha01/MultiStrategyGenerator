@@ -39,10 +39,13 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
-from config import GEMINI_API_KEY
+from dotenv import load_dotenv
+import os
 
 # ── Project ───────────────────────────────────────────────────────────────────
 from signals import SIGNALS
+
+load_dotenv()
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +54,7 @@ MAX_RETRIES    = 3                     # retries on transient failures
 RETRY_DELAY_S  = 5                     # seconds between retries
 PRE_SEND_SLEEP = 5                     # seconds to hold after generation before serving
 REGIMES        = ("chop", "trendy", "volatile")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
