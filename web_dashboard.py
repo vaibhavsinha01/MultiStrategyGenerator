@@ -1,5 +1,3 @@
-
-
 """
 web_dashboard.py
 ────────────────
@@ -18,39 +16,32 @@ Changes from v1:
     llm_generator.generate_strategy_document).
   • /api/strategy-code returns a downloadable Python bot (main_*.py) built via
     tools_llm_strategy + Gemini; falls back to a template if the model output is invalid.
+
+This is a public demo build: there is no authentication, session, or user
+management functionality. All routes and APIs are open.
 """
 
 from __future__ import annotations
 
 import csv
-import json
 import re
 from pathlib import Path
-import sqlite3
-import time
-from datetime import datetime, timezone
 
 from llm_generator import build_document_payload, generate_strategy_document
 from tools_llm_strategy import generate_strategy_main_py_source
 
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
-from starlette.middleware.sessions import SessionMiddleware
-from starlette.status import HTTP_303_SEE_OTHER
-from passlib.context import CryptContext
-from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi import FastAPI
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
 
-ROOT         = Path(__file__).resolve().parent
-DATA_DIR     = ROOT / "data"
-RESULTS_DIR  = ROOT / "results"
+ROOT          = Path(__file__).resolve().parent
+DATA_DIR      = ROOT / "data"
+RESULTS_DIR   = ROOT / "results"
 DASHBOARD_DIR = ROOT / "dashboard"
-PORT         = 8767
-AUTH_DB_PATH = ROOT / "users.db"
+PORT          = 8767
 
 DATA_RE = re.compile(r"(?P<symbol>[a-z]+usd)_(?P<timeframe>[^.]+)\.csv$", re.IGNORECASE)
 REGIMES = ("chop", "trendy", "volatile")
-PWD_CTX = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 # ── normalisation helpers ─────────────────────────────────────────────────────
@@ -339,97 +330,9 @@ def _strategy_pdf(symbol: str, timeframe: str, dataset: str, strategy_id: str) -
     return filename, pdf_bytes
 
 
-# ── auth db helpers ───────────────────────────────────────────────────────────
-
-def _db_connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(AUTH_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def _init_auth_db() -> None:
-    AUTH_DB_PATH.parent.mkdir(exist_ok=True)
-    with _db_connect() as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS users (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              full_name TEXT NOT NULL,
-              email TEXT NOT NULL UNIQUE,
-              password_hash TEXT NOT NULL,
-              created_at TEXT NOT NULL
-            )
-            """
-        )
-        conn.commit()
-
-
-def _create_user(full_name: str, email: str, password: str) -> None:
-    email_norm = email.strip().lower()
-    now = datetime.now(timezone.utc).isoformat()
-    password_hash = PWD_CTX.hash(password)
-    with _db_connect() as conn:
-        conn.execute(
-            "INSERT INTO users (full_name, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
-            (full_name.strip(), email_norm, password_hash, now),
-        )
-        conn.commit()
-
-
-def _get_user_by_email(email: str) -> sqlite3.Row | None:
-    email_norm = email.strip().lower()
-    with _db_connect() as conn:
-        row = conn.execute("SELECT * FROM users WHERE email = ?", (email_norm,)).fetchone()
-    return row
-
-
-def _verify_login(email: str, password: str) -> sqlite3.Row | None:
-    user = _get_user_by_email(email)
-    if user is None:
-        return None
-    if not PWD_CTX.verify(password, user["password_hash"]):
-        return None
-    return user
-
-
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 
 app = FastAPI(title="MultiStrategyGenerator Dashboard")
-
-
-def _redirect(url: str) -> RedirectResponse:
-    return RedirectResponse(url=url, status_code=HTTP_303_SEE_OTHER)
-
-
-class AuthRedirectMiddleware(BaseHTTPMiddleware):
-    """
-    Enforce: user must be logged-in to view the dashboard and call APIs.
-    Public routes stay accessible to allow login/signup.
-    """
-
-    async def dispatch(self, request: Request, call_next):
-        public_prefixes = ("/auth/", "/dashboard/")
-        public_exact = {"/login.html", "/signup.html", "/favicon.ico"}
-        path = request.url.path or "/"
-
-        if path in public_exact or any(path.startswith(p) for p in public_prefixes):
-            return await call_next(request)
-
-        # SessionMiddleware must be installed for request.session to exist.
-        if request.session.get("user") is None:
-            return _redirect("/login.html")
-
-        return await call_next(request)
-
-
-# Important: add auth first, session last (session becomes outermost wrapper)
-app.add_middleware(AuthRedirectMiddleware)
-app.add_middleware(
-    SessionMiddleware,
-    secret_key="change-me-in-production",
-    same_site="lax",
-    https_only=False,
-)
 
 
 @app.on_event("startup")
@@ -438,62 +341,9 @@ def _startup() -> None:
     DATA_DIR.mkdir(exist_ok=True)
     RESULTS_DIR.mkdir(exist_ok=True)
     DASHBOARD_DIR.mkdir(exist_ok=True)
-    _init_auth_db()
 
 
-# ── public pages ──────────────────────────────────────────────────────────────
-
-@app.get("/login.html", response_class=HTMLResponse)
-def login_page() -> Response:
-    return FileResponse(DASHBOARD_DIR / "login.html", media_type="text/html")
-
-
-@app.get("/signup.html", response_class=HTMLResponse)
-def signup_page() -> Response:
-    return FileResponse(DASHBOARD_DIR / "signup.html", media_type="text/html")
-
-
-@app.get("/logout")
-def logout(request: Request) -> Response:
-    request.session.clear()
-    return _redirect("/login.html")
-
-
-# ── auth actions ──────────────────────────────────────────────────────────────
-
-@app.post("/auth/signup")
-def signup(
-    request: Request,
-    full_name: str = Form(...),
-    email: str = Form(...),
-    password: str = Form(...),
-    confirm_password: str = Form(...),
-) -> Response:
-    if password != confirm_password:
-        return _redirect("/signup.html?error=password_mismatch")
-    try:
-        _create_user(full_name=full_name, email=email, password=password)
-    except sqlite3.IntegrityError:
-        return _redirect("/signup.html?error=email_exists")
-    user = _get_user_by_email(email)
-    request.session["user"] = {"id": int(user["id"]), "email": user["email"], "full_name": user["full_name"]}
-    return _redirect("/")
-
-
-@app.post("/auth/login")
-def login(
-    request: Request,
-    email: str = Form(...),
-    password: str = Form(...),
-) -> Response:
-    user = _verify_login(email=email, password=password)
-    if user is None:
-        return _redirect("/login.html?error=invalid_credentials")
-    request.session["user"] = {"id": int(user["id"]), "email": user["email"], "full_name": user["full_name"]}
-    return _redirect("/")
-
-
-# ── protected pages ───────────────────────────────────────────────────────────
+# ── pages ─────────────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
 def index() -> Response:
@@ -516,7 +366,7 @@ def dashboard_files(path: str) -> Response:
     return FileResponse(file_path)
 
 
-# ── API (protected) ───────────────────────────────────────────────────────────
+# ── API ───────────────────────────────────────────────────────────────────────
 
 @app.get("/api/options")
 def api_options() -> Response:

@@ -39,15 +39,12 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from config import GEMINI_API_KEY
 
 # ── Project ───────────────────────────────────────────────────────────────────
 from signals import SIGNALS
 
 # ── Config ────────────────────────────────────────────────────────────────────
-try:
-    from config import GEMINI_API_KEY
-except Exception:
-    GEMINI_API_KEY = "AIzaSyBSO6iLR30iegiBQdkfynxNnXK3W3WfHaY"
 
 GEMINI_MODEL   = "gemini-2.5-flash"   # model that actually works with your key
 MAX_RETRIES    = 3                     # retries on transient failures
