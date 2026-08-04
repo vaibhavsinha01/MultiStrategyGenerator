@@ -1,10 +1,42 @@
-data
-env
-cache
-images
-models
-results
-ads.txt
+# Environment
+.env
+env/
+.env.*
+
+# OAuth Secrets
 google_oauth.json
-Project1.drawio.png
+
+# Database
 users.db
+*.db
+
+# Cache
+cache/
+__pycache__/
+
+# Models
+models/
+
+# Generated Results
+results/
+
+# Images (generated assets)
+images/
+
+# Logs
+logs/
+*.log
+
+# Redis
+dump.rdb
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
