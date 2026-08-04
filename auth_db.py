@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import os
@@ -23,6 +24,11 @@ DATABASE_URL = os.environ.get(
 SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-local-dev-secret")
 ALGORITHM = os.environ.get("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "120"))
+
+# ── credit system config ──────────────────────────────────────────────────────
+USER_CREDITS = int(os.environ.get("USER_CREDITS", "10"))
+PREMIUM_CREDITS = int(os.environ.get("PREMIUM_CREDITS", "100"))
+ADMIN_CREDITS = int(os.environ.get("ADMIN_CREDITS", "100000"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -92,11 +98,22 @@ def init_db() -> None:
                 currency TEXT DEFAULT 'USD',
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
+            CREATE TABLE IF NOT EXISTS credit_ledger (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                delta INTEGER NOT NULL,
+                reason TEXT NOT NULL,
+                balance_after INTEGER NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
             """
         )
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE")
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN NOT NULL DEFAULT FALSE")
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT")
+        cur.execute(
+            f"ALTER TABLE users ADD COLUMN IF NOT EXISTS credits INTEGER NOT NULL DEFAULT {USER_CREDITS}"
+        )
         cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_google_id_idx ON users(google_id) WHERE google_id IS NOT NULL")
 
 
@@ -107,6 +124,14 @@ def user_has_premium(user: dict[str, Any]) -> bool:
 def set_user_premium(user_id: int, premium: bool = True) -> None:
     with _connect() as conn, conn.cursor() as cur:
         cur.execute("UPDATE users SET is_premium=%s WHERE id=%s", (premium, user_id))
+        if premium:
+            # Bump the user up to the premium credit allotment, but never lower
+            # a balance they already have (e.g. an admin, or someone who
+            # already has more credits than the premium grant).
+            cur.execute(
+                "UPDATE users SET credits = GREATEST(credits, %s) WHERE id=%s",
+                (PREMIUM_CREDITS, user_id),
+            )
 
 
 def record_subscription(user_id: int, order_id: str, status: str, amount: float, currency: str = "USD") -> None:
@@ -120,6 +145,84 @@ def record_subscription(user_id: int, order_id: str, status: str, amount: float,
         )
 
 
+# ── credit helpers ────────────────────────────────────────────────────────────
+
+def get_user_credits(user: dict[str, Any]) -> int:
+    """Read credits off an already-fetched user dict (may be stale if the
+    balance changed elsewhere in the same request; use get_user_by_id for a
+    fresh read when that matters)."""
+    return int(user.get("credits", 0) or 0)
+
+
+def user_has_credits(user: dict[str, Any], amount: int) -> bool:
+    return get_user_credits(user) >= amount
+
+
+def deduct_credits(user_id: int, amount: int, reason: str = "") -> int:
+    """
+    Atomically deduct `amount` credits from user_id, but only if they have
+    enough. Returns the new balance. Raises ValueError if insufficient.
+    """
+    with _connect() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            """
+            UPDATE users
+            SET credits = credits - %s
+            WHERE id = %s AND credits >= %s
+            RETURNING credits
+            """,
+            (amount, user_id, amount),
+        )
+        row = cur.fetchone()
+        if row is None:
+            # Either the user doesn't exist, or didn't have enough credits.
+            cur2 = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur2.execute("SELECT credits FROM users WHERE id=%s", (user_id,))
+            current = cur2.fetchone()
+            current_balance = int(current["credits"]) if current else 0
+            raise ValueError(
+                f"Insufficient credits: have {current_balance}, need {amount}"
+            )
+        new_balance = int(row["credits"])
+        cur.execute(
+            "INSERT INTO credit_ledger (user_id, delta, reason, balance_after) VALUES (%s, %s, %s, %s)",
+            (user_id, -amount, reason, new_balance),
+        )
+        return new_balance
+
+
+def add_credits(user_id: int, amount: int, reason: str = "") -> int:
+    """Grant credits (e.g. top-ups, admin adjustments). Returns new balance."""
+    with _connect() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            "UPDATE users SET credits = credits + %s WHERE id=%s RETURNING credits",
+            (amount, user_id),
+        )
+        row = cur.fetchone()
+        new_balance = int(row["credits"]) if row else 0
+        cur.execute(
+            "INSERT INTO credit_ledger (user_id, delta, reason, balance_after) VALUES (%s, %s, %s, %s)",
+            (user_id, amount, reason, new_balance),
+        )
+        return new_balance
+
+
+def set_user_credits(user_id: int, amount: int, reason: str = "admin_set") -> int:
+    """Set a user's credit balance to an exact value."""
+    with _connect() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            "UPDATE users SET credits=%s WHERE id=%s RETURNING credits",
+            (amount, user_id),
+        )
+        row = cur.fetchone()
+        new_balance = int(row["credits"]) if row else 0
+        cur.execute(
+            "INSERT INTO credit_ledger (user_id, delta, reason, balance_after) VALUES (%s, %s, %s, %s)",
+            (user_id, amount, reason, new_balance),
+        )
+        return new_balance
+
+
 def ensure_admin_user() -> None:
     email = os.environ.get("ADMIN_EMAIL", "vaibhavrajsinha099@gmail.com").strip().lower()
     password = os.environ.get("ADMIN_PASSWORD", "Hello#2004")
@@ -130,17 +233,18 @@ def ensure_admin_user() -> None:
             cur.execute(
                 """
                 UPDATE users
-                SET is_admin=TRUE, is_premium=TRUE, full_name=%s, hashed_password=%s
+                SET is_admin=TRUE, is_premium=TRUE, full_name=%s, hashed_password=%s,
+                    credits = GREATEST(credits, %s)
                 WHERE id=%s
                 """,
-                (full_name, hash_password(password), existing["id"]),
+                (full_name, hash_password(password), ADMIN_CREDITS, existing["id"]),
             )
         return
     user = create_user(email, full_name, password)
     with _connect() as conn, conn.cursor() as cur:
         cur.execute(
-            "UPDATE users SET is_admin=TRUE, is_premium=TRUE WHERE id=%s",
-            (user["id"],),
+            "UPDATE users SET is_admin=TRUE, is_premium=TRUE, credits=%s WHERE id=%s",
+            (ADMIN_CREDITS, user["id"]),
         )
 
 
@@ -160,11 +264,11 @@ def create_or_get_google_user(email: str, full_name: str, google_id: str) -> dic
         placeholder_pw = hash_password(os.urandom(24).hex())
         cur.execute(
             """
-            INSERT INTO users (email, full_name, hashed_password, google_id)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id, email, full_name, is_admin, is_premium, google_id, created_at
+            INSERT INTO users (email, full_name, hashed_password, google_id, credits)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, email, full_name, is_admin, is_premium, google_id, credits, created_at
             """,
-            (email, full_name.strip() or email.split("@")[0], placeholder_pw, google_id),
+            (email, full_name.strip() or email.split("@")[0], placeholder_pw, google_id, USER_CREDITS),
         )
         return dict(cur.fetchone())
 
@@ -247,14 +351,15 @@ def create_user(email: str, full_name: str, password: str) -> dict[str, Any]:
 
         cur.execute(
             """
-            INSERT INTO users (email, full_name, hashed_password)
-            VALUES (%s, %s, %s)
-            RETURNING id, email, full_name, created_at
+            INSERT INTO users (email, full_name, hashed_password, credits)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, email, full_name, credits, created_at
             """,
             (
                 email.strip().lower(),
                 full_name.strip(),
                 hashed,
+                USER_CREDITS,
             ),
         )
 

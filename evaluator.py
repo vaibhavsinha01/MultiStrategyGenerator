@@ -63,7 +63,8 @@ def score_strategy(metrics: dict) -> float:
     # Trade count confidence penalty (diminishing returns above 50)
     trade_confidence = min(n / 50.0, 1.0)
 
-    base = 0.45 * r + 0.3 * sh + 0.25 * wr - 0.20 * dd
+    base = 0.9 * r + 0.6 * sh + 0.6 * wr - 0.4 * dd
+    base = min(1,base) # now the max value is changed to 1
     return round(base * trade_confidence, 6)
 
 

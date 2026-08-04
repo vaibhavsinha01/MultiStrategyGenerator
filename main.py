@@ -2218,6 +2218,12 @@ def feature_engineer(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+# def test():
+#     path = rf"C:\Users\vaibh\OneDrive\Desktop\Workstation\MultiStrategyGenerator\data\btcusdt_1d.csv"
+#     df = pd.read_csv(path)
+#     res = feature_engineer(df)
+#     res.to_csv("signals.csv")
+
 def run(
     csv_path: str,
     n_strategies: int = 1000,
@@ -2451,3 +2457,6 @@ if __name__ == "__main__":
         seed         = args.seed,
         append_results = not args.overwrite,
     )
+
+# if __name__ == "__main__":
+#     test()

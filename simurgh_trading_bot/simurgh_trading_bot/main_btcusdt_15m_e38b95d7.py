@@ -1,6 +1,6 @@
 """
 Auto-generated Simurgh Capital trading bot.
-Strategy id: 622937c8
+Strategy id: e38b95d7
 
 Setup:
   cd simurgh_trading_bot && pip install -e .
@@ -12,27 +12,19 @@ import time
 
 from simurgh_trading_bot.strategy import SimpleStrategy
 
-from dotenv import  load_dotenv
-import warnings
-from pandas.errors import PerformanceWarning
 
-warnings.simplefilter("ignore", PerformanceWarning)
-
-load_dotenv()
-
-
-STRATEGY_PARAMS = {'strategy_id': '622937c8',
- 'direction': 'bear',
- 'symbol_binance': 'ETHUSDT',
+STRATEGY_PARAMS = {'strategy_id': 'e38b95d7',
+ 'direction': 'bull',
+ 'symbol_binance': 'BTCUSDT',
  'interval': '15m',
- 'take_profit_pct': 5.62,
- 'stop_loss_pct': 3.24,
- 'quantity': 1,
- 'leverage': 10,
+ 'take_profit_pct': 3.07859343,
+ 'stop_loss_pct': 1.9320047100000002,
+ 'quantity': 0.01,
+ 'leverage': 5,
  'testnet': True,
- 'trade_side': 'SELL',
+ 'trade_side': 'BUY',
  'scan_interval_seconds': 60,
- 'signal_codes': ['s69','s52','s25']}
+ 'signal_codes': ['s4', 's123', 's115', 's96']}
 
 
 def _resolve_quantity(symbol: str, desired: float, testnet: bool) -> float:

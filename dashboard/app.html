@@ -6,223 +6,346 @@
   <title>Strategy Report — Simurgh Capital</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #F8FAFC;
+      --bg: #F7F8FA;
       --card: #ffffff;
-      --ink: #0b1220;
-      --muted: #64748b;
-      --line: rgba(15, 23, 42, 0.08);
-      --shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
-      --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.06);
-      --radius: 22px;
-      --blue: #2563eb;
-      --blue-soft: rgba(37, 99, 235, 0.08);
-      --green: #059669;
-      --green-soft: rgba(5, 150, 105, 0.1);
-      --red: #dc2626;
-      --red-soft: rgba(220, 38, 38, 0.1);
+      --ink: #0E1420;
+      --muted: #667085;
+      --faint: #98A2B3;
+      --line: rgba(14, 20, 32, 0.08);
+      --line-strong: rgba(14, 20, 32, 0.14);
+      --shadow: 0 20px 48px rgba(14, 20, 32, 0.09);
+      --shadow-soft: 0 6px 20px rgba(14, 20, 32, 0.05);
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --blue: #2454E8;
+      --blue-ink: #16348C;
+      --blue-soft: rgba(36, 84, 232, 0.08);
+      --blue-line: rgba(36, 84, 232, 0.22);
+      --green: #0C8B5E;
+      --green-soft: rgba(12, 139, 94, 0.10);
+      --red: #D0342C;
+      --red-soft: rgba(208, 52, 44, 0.09);
+      --amber: #B45309;
+      --amber-soft: rgba(180, 83, 9, 0.10);
+      --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     }
     * { box-sizing: border-box; }
+    html { -webkit-font-smoothing: antialiased; }
     body {
       margin: 0;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
       color: var(--ink);
-      background:
-        radial-gradient(900px 500px at 80% 0%, rgba(37,99,235,0.10), transparent 55%),
-        var(--bg);
+      background: var(--bg);
     }
     a { color: inherit; text-decoration: none; }
-    .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+    .container { max-width: 1320px; margin: 0 auto; padding: 0 28px; }
+    ::selection { background: var(--blue-soft); }
 
+    /* ── nav ─────────────────────────────────────────────────────────── */
     .nav {
-      position: sticky;
-      top: 0;
-      z-index: 30;
-      backdrop-filter: blur(12px);
-      background: rgba(248, 250, 252, 0.85);
+      position: sticky; top: 0; z-index: 40;
+      backdrop-filter: blur(14px);
+      background: rgba(247, 248, 250, 0.86);
       border-bottom: 1px solid var(--line);
     }
     .nav-inner {
-      height: 72px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
+      height: 68px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
     }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 15px; letter-spacing: -0.01em; }
     .logo {
-      width: 34px; height: 34px; border-radius: 12px;
-      background: linear-gradient(135deg, #2563eb, #60a5fa);
-      box-shadow: 0 8px 18px rgba(37,99,235,0.22);
+      width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+      background: linear-gradient(135deg, #2454E8, #6C8CF5);
+      box-shadow: 0 6px 14px rgba(36,84,232,0.28);
+      position: relative;
     }
-    .nav-actions { display: flex; gap: 10px; align-items: center; }
+    .logo::after {
+      content: ""; position: absolute; inset: 8px;
+      border: 1.5px solid rgba(255,255,255,0.75);
+      border-radius: 3px;
+    }
+    .nav-actions { display: flex; gap: 8px; align-items: center; }
     .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      padding: 10px 16px; border-radius: 999px; font-weight: 700; font-size: 13px;
-      border: 1px solid var(--line); background: #fff; cursor: pointer;
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 9px 16px; border-radius: 999px; font-weight: 600; font-size: 13px;
+      border: 1px solid var(--line-strong); background: #fff; color: var(--ink); cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
     }
-    .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-soft); }
+    .btn:hover { border-color: var(--blue-line); background: var(--blue-soft); }
     .btn-primary {
-      background: linear-gradient(135deg, #2563eb, #60a5fa);
-      color: #fff; border: 0;
-      box-shadow: 0 12px 28px rgba(37,99,235,0.22);
+      background: var(--ink); color: #fff; border: 1px solid var(--ink);
     }
+    .btn-primary:hover { background: #000; border-color: #000; }
 
-    main { padding: 32px 0 56px; }
-    .page-head { margin-bottom: 24px; }
-    .page-head h1 { margin: 0 0 8px; font-size: 32px; letter-spacing: -0.02em; }
-    .page-head p { margin: 0; color: var(--muted); font-size: 15px; }
+    .credits-chip {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 14px 7px 10px; border-radius: 999px;
+      background: var(--blue-soft); border: 1px solid var(--blue-line);
+      font-size: 13px; font-weight: 700; color: var(--blue-ink);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .credits-chip .dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--blue);
+      flex-shrink: 0;
+    }
+    .credits-chip.low {
+      background: var(--red-soft); border-color: rgba(208,52,44,0.25); color: var(--red);
+    }
+    .credits-chip.low .dot { background: var(--red); }
 
+    /* ── page head ───────────────────────────────────────────────────── */
+    main { padding: 36px 0 64px; }
+    .page-head {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      gap: 20px; margin-bottom: 28px; flex-wrap: wrap;
+    }
+    .page-head h1 {
+      margin: 0 0 6px; font-size: 28px; letter-spacing: -0.02em; font-weight: 800;
+    }
+    .page-head p { margin: 0; color: var(--muted); font-size: 14.5px; }
+    .cost-legend {
+      display: flex; gap: 10px; font-size: 12.5px; color: var(--muted);
+      align-items: center; flex-shrink: 0;
+    }
+    .cost-legend b { color: var(--ink); font-weight: 700; }
+    .cost-legend .sep { color: var(--faint); }
+
+    /* ── filters ─────────────────────────────────────────────────────── */
     .filters-card {
       background: var(--card);
       border: 1px solid var(--line);
-      border-radius: var(--radius);
+      border-radius: var(--radius-lg);
       box-shadow: var(--shadow-soft);
-      padding: 22px 24px;
-      margin-bottom: 24px;
-      transition: box-shadow 0.2s ease, transform 0.2s ease;
+      padding: 20px 22px;
+      margin-bottom: 20px;
     }
-    .filters-card:hover { box-shadow: var(--shadow); }
     .filters-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
+      gap: 14px;
     }
     .field label {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 12px; font-weight: 700; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;
+      display: block;
+      font-size: 11px; font-weight: 700; color: var(--faint);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 7px;
     }
+    .field .select-wrap { position: relative; }
     .field select {
-      width: 100%; min-height: 44px; padding: 10px 14px;
-      border-radius: 14px; border: 1px solid var(--line);
+      width: 100%; appearance: none; -webkit-appearance: none;
+      min-height: 42px; padding: 9px 34px 9px 13px;
+      border-radius: var(--radius-sm); border: 1px solid var(--line-strong);
       background: #fff; font-size: 14px; font-weight: 600; color: var(--ink);
+      cursor: pointer;
       transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
+    .field select:hover { border-color: var(--faint); }
     .field select:focus {
-      outline: none; border-color: rgba(37,99,235,0.45);
-      box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+      outline: none; border-color: var(--blue);
+      box-shadow: 0 0 0 3px var(--blue-soft);
+    }
+    .field .select-wrap::after {
+      content: ""; position: absolute; right: 13px; top: 50%;
+      width: 8px; height: 8px; pointer-events: none;
+      border-right: 1.6px solid var(--faint); border-bottom: 1.6px solid var(--faint);
+      transform: translateY(-65%) rotate(45deg);
     }
 
-    .status { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    /* ── status row ──────────────────────────────────────────────────── */
+    .status { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
     .pill {
-      padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 700;
-      background: #fff; border: 1px solid var(--line); color: var(--muted);
+      padding: 7px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+      background: #fff; border: 1px solid var(--line-strong); color: var(--muted);
+      font-variant-numeric: tabular-nums;
     }
+    .pill.pill-symbol { color: var(--ink); font-family: var(--mono); letter-spacing: 0.01em; }
+    .pill.pill-dataset { color: var(--blue-ink); background: var(--blue-soft); border-color: var(--blue-line); }
 
+    /* ── metric cards ────────────────────────────────────────────────── */
     .metrics {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 14px;
+      gap: 12px;
       margin-bottom: 24px;
     }
     .metric {
       background: var(--card);
       border: 1px solid var(--line);
-      border-radius: 20px;
-      padding: 18px 18px 16px;
+      border-radius: var(--radius-md);
+      padding: 16px 16px 15px;
       box-shadow: var(--shadow-soft);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    .metric:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-    .metric-top {
-      display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+    .metric-label {
+      font-size: 11px; font-weight: 700; color: var(--faint);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px;
     }
-    .metric-top span {
-      font-size: 12px; font-weight: 700; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.04em;
+    .metric strong {
+      display: block;
+      font-size: 23px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+      font-family: var(--mono);
     }
-    .metric-icon {
-      width: 32px; height: 32px; border-radius: 10px;
-      background: var(--blue-soft); color: var(--blue);
-      display: grid; place-items: center; font-size: 14px;
-    }
-    .metric strong { font-size: 26px; letter-spacing: -0.02em; line-height: 1.1; }
     .positive { color: var(--green); }
     .negative { color: var(--red); }
-    .muted { color: var(--muted); }
+    .muted-val { color: var(--ink); }
 
+    /* ── table ───────────────────────────────────────────────────────── */
     .table-card {
       background: var(--card);
       border: 1px solid var(--line);
-      border-radius: var(--radius);
+      border-radius: var(--radius-lg);
       box-shadow: var(--shadow-soft);
       overflow: hidden;
       position: relative;
     }
     .table-wrap { overflow: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 1200px; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; min-width: 1180px; font-size: 13px; }
     thead th {
       position: sticky; top: 0; z-index: 2;
-      background: #f1f5f9; color: #475569;
-      font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
-      padding: 14px 12px; text-align: right; border-bottom: 1px solid var(--line);
+      background: #FAFBFC; color: var(--faint);
+      font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 13px 14px; text-align: right; border-bottom: 1px solid var(--line-strong);
+      white-space: nowrap;
     }
+    thead th.group-train { box-shadow: inset 1px 0 0 var(--line); }
+    thead th.group-test { box-shadow: inset 1px 0 0 var(--line); }
     tbody td {
-      padding: 14px 12px; text-align: right; border-bottom: 1px solid rgba(15,23,42,0.05);
+      padding: 13px 14px; text-align: right; border-bottom: 1px solid var(--line);
       vertical-align: middle;
+      font-variant-numeric: tabular-nums;
+      font-family: var(--mono);
+      font-size: 12.5px;
     }
-    tbody tr:nth-child(even) { background: rgba(248,250,252,0.7); }
-    tbody tr { transition: background 0.15s ease; }
-    tbody tr:hover { background: rgba(37,99,235,0.04); }
-    td:first-child, th:first-child,
+    tbody tr:hover { background: rgba(36,84,232,0.03); }
+    tbody tr:last-child td { border-bottom: none; }
+    td:nth-child(1), th:nth-child(1),
     td:nth-child(2), th:nth-child(2),
     td:nth-child(3), th:nth-child(3) { text-align: left; }
-    .signals { max-width: 220px; white-space: normal; line-height: 1.45; color: #334155; }
-    .strategy-id { font-weight: 800; font-size: 14px; }
+    td:nth-child(1) { color: var(--faint); font-weight: 600; }
+    .signals {
+      max-width: 240px; white-space: normal; line-height: 1.5; color: var(--muted);
+      font-family: Inter, sans-serif; font-size: 12.5px;
+    }
+    .strategy-id {
+      font-weight: 700; font-size: 13px; color: var(--ink); margin-bottom: 4px;
+      font-family: var(--mono);
+    }
     .badge {
-      display: inline-flex; align-items: center; padding: 5px 10px;
-      border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: uppercase;
+      display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px;
+      border-radius: 999px; font-size: 10px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.03em; font-family: Inter, sans-serif;
     }
+    .badge::before { content: ""; width: 5px; height: 5px; border-radius: 50%; }
     .badge-bull { background: var(--green-soft); color: var(--green); }
+    .badge-bull::before { background: var(--green); }
     .badge-bear { background: var(--red-soft); color: var(--red); }
+    .badge-bear::before { background: var(--red); }
+    .badge-neutral { background: rgba(14,20,32,0.06); color: var(--muted); }
+    .badge-neutral::before { background: var(--faint); }
 
-    .export-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .export-actions { display: flex; gap: 6px; justify-content: flex-end; }
     .action-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 8px 12px; border-radius: 12px; font-size: 12px; font-weight: 700;
-      border: 1px solid var(--line); background: #fff; cursor: pointer;
-      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 7px 11px; border-radius: var(--radius-sm);
+      font-size: 11.5px; font-weight: 700; font-family: Inter, sans-serif;
+      border: 1px solid var(--line-strong); background: #fff; color: var(--ink); cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+      white-space: nowrap;
     }
-    .action-btn:hover { transform: translateY(-1px); border-color: rgba(37,99,235,0.25); background: var(--blue-soft); }
-    .action-btn.code { color: var(--blue); }
+    .action-btn .cost {
+      font-size: 10px; font-weight: 700; color: var(--faint);
+      font-family: var(--mono);
+    }
+    .action-btn:hover { border-color: var(--line-strong); background: #FAFBFC; }
+    .action-btn.code { color: var(--blue-ink); }
+    .action-btn.code:hover { border-color: var(--blue-line); background: var(--blue-soft); }
+    .action-btn.code:hover .cost { color: var(--blue-ink); }
+    .action-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
 
+    /* ── empty / loading ─────────────────────────────────────────────── */
     .empty {
-      padding: 40px 24px; text-align: center; color: var(--muted); font-size: 15px;
+      padding: 56px 24px; text-align: center; color: var(--muted); font-size: 14.5px;
+    }
+    .empty-icon {
+      width: 40px; height: 40px; margin: 0 auto 14px; border-radius: 10px;
+      background: rgba(14,20,32,0.05); display: grid; place-items: center;
     }
     .report-loading-overlay {
-      position: absolute; inset: 0; background: rgba(255,255,255,0.7);
+      position: absolute; inset: 0; background: rgba(255,255,255,0.75);
       display: flex; align-items: center; justify-content: center; z-index: 5;
-      backdrop-filter: blur(3px);
+      backdrop-filter: blur(2px);
     }
     .spinner {
-      width: 32px; height: 32px; border: 3px solid rgba(37,99,235,0.15);
+      width: 26px; height: 26px; border: 2.5px solid var(--blue-soft);
       border-top-color: var(--blue); border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .fade-up {
-      opacity: 0; transform: translateY(12px);
-      animation: fadeUp 0.5s ease forwards;
+    .fade-up { opacity: 0; transform: translateY(10px); animation: fadeUp 0.45s ease forwards; }
+    @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+    .delay-1 { animation-delay: 0.04s; }
+    .delay-2 { animation-delay: 0.08s; }
+    .delay-3 { animation-delay: 0.12s; }
+
+    /* ── toast ───────────────────────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translate(-50%, 12px);
+      background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 999px;
+      font-size: 13px; font-weight: 600; box-shadow: var(--shadow);
+      opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 90; display: flex; align-items: center; gap: 8px;
     }
-    @keyframes fadeUp {
-      to { opacity: 1; transform: translateY(0); }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .toast .toast-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+    /* ── insufficient-credits modal ──────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(14,20,32,0.5);
+      display: none; align-items: center; justify-content: center;
+      z-index: 100; backdrop-filter: blur(2px); padding: 20px;
     }
-    .delay-1 { animation-delay: 0.05s; }
-    .delay-2 { animation-delay: 0.1s; }
-    .delay-3 { animation-delay: 0.15s; }
+    .modal-backdrop.open { display: flex; }
+    .modal-card {
+      background: var(--card); border-radius: var(--radius-lg); box-shadow: var(--shadow);
+      padding: 26px; max-width: 380px; width: 100%; text-align: left;
+      animation: modalIn 0.18s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(6px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .modal-icon {
+      width: 38px; height: 38px; margin-bottom: 14px; border-radius: 10px;
+      background: var(--red-soft); color: var(--red);
+      display: grid; place-items: center; font-size: 17px; font-weight: 800;
+    }
+    .modal-card h3 { margin: 0 0 6px; font-size: 16.5px; font-weight: 800; letter-spacing: -0.01em; }
+    .modal-card p { margin: 0 0 20px; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+    .modal-balance {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 14px; border-radius: var(--radius-sm); background: var(--bg);
+      border: 1px solid var(--line); margin-bottom: 20px; font-size: 13px;
+    }
+    .modal-balance span:first-child { color: var(--muted); font-weight: 600; }
+    .modal-balance span:last-child { font-family: var(--mono); font-weight: 700; }
+    .modal-actions { display: flex; gap: 10px; }
+    .modal-actions .btn { flex: 1; }
 
     @media (max-width: 1024px) {
       .filters-grid { grid-template-columns: 1fr 1fr; }
-      .metrics { grid-template-columns: 1fr 1fr; }
+      .metrics { grid-template-columns: 1fr 1fr 1fr; }
+      .cost-legend { display: none; }
     }
-    @media (max-width: 560px) {
-      .filters-grid, .metrics { grid-template-columns: 1fr; }
-      .page-head h1 { font-size: 26px; }
+    @media (max-width: 640px) {
+      .container { padding: 0 18px; }
+      .filters-grid, .metrics { grid-template-columns: 1fr 1fr; }
+      .page-head h1 { font-size: 23px; }
+      .nav-actions .btn span.btn-label { display: none; }
     }
   </style>
 </head>
@@ -235,43 +358,58 @@
         <span>Simurgh Capital</span>
       </a>
       <div class="nav-actions">
-        <a class="btn" href="/">Home</a>
-        <a class="btn" href="/document">Docs</a>
-        <a class="btn" href="/logout">Logout</a>
+        <span class="credits-chip" id="creditsChip" title="Available credits">
+          <span class="dot"></span><span id="creditsChipText">— credits</span>
+        </span>
+        <a class="btn" href="/"><span class="btn-label">Home</span></a>
+        <a class="btn" href="/services"><span class="btn-label">Services</span></a>
+        <a class="btn" href="/document"><span class="btn-label">Docs</span></a>
+        <a class="btn" href="/logout"><span class="btn-label">Logout</span></a>
       </div>
     </div>
   </nav>
 
   <main class="container">
     <div class="page-head fade-up">
-      <h1>Strategy Report</h1>
-      <p>Top strategy results by symbol, timeframe, and validation dataset.</p>
+      <div>
+        <h1>Strategy Report</h1>
+        <p>Top strategy results by symbol, timeframe, and validation dataset.</p>
+      </div>
+      <div class="cost-legend">
+        <span><b>PDF</b> 2 credits</span>
+        <span class="sep">·</span>
+        <span><b>Code</b> 4 credits</span>
+      </div>
     </div>
 
     <section class="filters-card fade-up delay-1" aria-label="Report filters">
       <div class="filters-grid">
         <div class="field">
-          <label><span>◎</span> Symbol</label>
-          <select id="symbol"></select>
+          <label for="symbol">Symbol</label>
+          <div class="select-wrap"><select id="symbol"></select></div>
         </div>
         <div class="field">
-          <label><span>⏱</span> Timeframe</label>
-          <select id="timeframe"></select>
+          <label for="timeframe">Timeframe</label>
+          <div class="select-wrap"><select id="timeframe"></select></div>
         </div>
         <div class="field">
-          <label><span>✓</span> Dataset</label>
-          <select id="dataset">
-            <option value="validated">Validated</option>
-            <option value="train">Train</option>
-          </select>
+          <label for="dataset">Dataset</label>
+          <div class="select-wrap">
+            <select id="dataset">
+              <option value="validated">Validated</option>
+              <option value="train">Train</option>
+            </select>
+          </div>
         </div>
         <div class="field">
-          <label><span>#</span> Rows</label>
-          <select id="limit">
-            <option value="100">Top 100</option>
-            <option value="500">Top 500</option>
-            <option value="1000">Top 1000</option>
-          </select>
+          <label for="limit">Rows</label>
+          <div class="select-wrap">
+            <select id="limit">
+              <option value="100">Top 100</option>
+              <option value="500">Top 500</option>
+              <option value="1000">Top 1000</option>
+            </select>
+          </div>
         </div>
       </div>
     </section>
@@ -280,6 +418,24 @@
     <section class="metrics fade-up delay-2" id="summary"></section>
     <section class="table-card fade-up delay-3" id="report"></section>
   </main>
+
+  <!-- Insufficient credits modal -->
+  <div class="modal-backdrop" id="creditsModalBackdrop">
+    <div class="modal-card">
+      <div class="modal-icon">!</div>
+      <h3>Not enough credits</h3>
+      <p id="creditsModalMessage">You don't have enough credits for this action.</p>
+      <div class="modal-balance">
+        <span>Your balance</span>
+        <span id="modalBalanceValue">0 credits</span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="creditsModalClose">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><span class="toast-dot"></span><span id="toastText"></span></div>
 
   <script>
     const els = {
@@ -290,9 +446,18 @@
       status: document.querySelector("#status"),
       summary: document.querySelector("#summary"),
       report: document.querySelector("#report"),
+      creditsChip: document.querySelector("#creditsChip"),
+      creditsChipText: document.querySelector("#creditsChipText"),
+      modalBackdrop: document.querySelector("#creditsModalBackdrop"),
+      modalMessage: document.querySelector("#creditsModalMessage"),
+      modalBalance: document.querySelector("#modalBalanceValue"),
+      modalClose: document.querySelector("#creditsModalClose"),
+      toast: document.querySelector("#toast"),
+      toastText: document.querySelector("#toastText"),
     };
 
     let options = null;
+    let toastTimer = null;
 
     const fmt = {
       pct: (v) => `${Number(v || 0).toFixed(2)}%`,
@@ -304,14 +469,14 @@
       const n = Number(v || 0);
       if (n > 0) return "positive";
       if (n < 0) return "negative";
-      return "muted";
+      return "muted-val";
     }
 
     function directionBadge(dir) {
       const d = (dir || "").toLowerCase();
       if (d === "bull") return `<span class="badge badge-bull">Bull</span>`;
       if (d === "bear") return `<span class="badge badge-bear">Bear</span>`;
-      return `<span class="badge">${dir || "—"}</span>`;
+      return `<span class="badge badge-neutral">${dir || "—"}</span>`;
     }
 
     function setSelect(select, values, selected) {
@@ -328,18 +493,100 @@
       setSelect(els.timeframe, timeframes, els.timeframe.value || preferred);
     }
 
-    const metricIcons = ["📊", "📈", "🎯", "⚡", "★"];
-
-    function metricCard(label, value, klass = "", icon = "📊") {
+    function metricCard(label, value, klass = "") {
       return `
         <div class="metric">
-          <div class="metric-top">
-            <span>${label}</span>
-            <div class="metric-icon">${icon}</div>
-          </div>
+          <div class="metric-label">${label}</div>
           <strong class="${klass}">${value}</strong>
         </div>
       `;
+    }
+
+    // ── credits ────────────────────────────────────────────────────────
+    function renderCredits(amount) {
+      if (amount === null || amount === undefined) {
+        els.creditsChipText.textContent = "— credits";
+        els.creditsChip.classList.remove("low");
+        return;
+      }
+      els.creditsChipText.textContent = `${fmt.num(amount)} credit${amount === 1 ? "" : "s"}`;
+      els.creditsChip.classList.toggle("low", amount < 4);
+      els.modalBalance.textContent = `${fmt.num(amount)} credit${amount === 1 ? "" : "s"}`;
+    }
+
+    async function refreshCredits() {
+      try {
+        const response = await fetch("/api/me");
+        const data = await response.json();
+        if (data.authenticated) renderCredits(data.credits);
+      } catch (error) {
+        // Non-fatal; leave the chip as-is.
+      }
+    }
+
+    function openCreditsModal(message, balance) {
+      els.modalMessage.textContent = message || "You don't have enough credits for this action.";
+      if (balance !== undefined && balance !== null) {
+        els.modalBalance.textContent = `${fmt.num(balance)} credit${balance === 1 ? "" : "s"}`;
+      }
+      els.modalBackdrop.classList.add("open");
+    }
+    function closeCreditsModal() { els.modalBackdrop.classList.remove("open"); }
+    els.modalClose.addEventListener("click", closeCreditsModal);
+    els.modalBackdrop.addEventListener("click", (e) => { if (e.target === els.modalBackdrop) closeCreditsModal(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeCreditsModal(); });
+
+    function showToast(message) {
+      els.toastText.textContent = message;
+      els.toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => els.toast.classList.remove("show"), 2600);
+    }
+
+    // ── downloads (fetch + blob so 402s can show a proper modal) ────────
+    async function downloadFile(url, fallbackName, kindLabel) {
+      let response;
+      try {
+        response = await fetch(url);
+      } catch (error) {
+        openCreditsModal("Network error while contacting the server. Please try again.");
+        return;
+      }
+
+      if (response.status === 402) {
+        let payload = {};
+        try { payload = await response.json(); } catch (e) {}
+        openCreditsModal(payload.message, payload.creditsAvailable);
+        await refreshCredits();
+        return;
+      }
+
+      if (!response.ok) {
+        let payload = {};
+        try { payload = await response.json(); } catch (e) {}
+        openCreditsModal(payload.message || payload.error || "Something went wrong. Please try again.");
+        return;
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : fallbackName;
+
+      const link = document.createElement("a");
+      const objectUrl = URL.createObjectURL(blob);
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+
+      const remaining = response.headers.get("X-Credits-Remaining");
+      if (remaining !== null) renderCredits(Number(remaining));
+      else refreshCredits();
+
+      showToast(`${kindLabel} downloaded`);
     }
 
     async function loadReport() {
@@ -359,28 +606,32 @@
       if (!data.available) {
         els.status.innerHTML = "";
         els.summary.innerHTML = "";
-        els.report.innerHTML = `<div class="empty">No generated strategy report exists for this selection yet.</div>`;
+        els.report.innerHTML = `
+          <div class="empty">
+            <div class="empty-icon">—</div>
+            No generated strategy report exists for this selection yet.
+          </div>`;
         return;
       }
 
       const best = data.top[0];
       els.status.innerHTML = `
-        <span class="pill">${data.symbol.toUpperCase()}</span>
-        <span class="pill">${data.timeframe.toUpperCase()}</span>
-        <span class="pill">${data.dataset}</span>
+        <span class="pill pill-symbol">${data.symbol.toUpperCase()}</span>
+        <span class="pill pill-symbol">${data.timeframe.toUpperCase()}</span>
+        <span class="pill pill-dataset">${data.dataset}</span>
         <span class="pill">${fmt.num(data.totalStrategies)} strategies</span>
       `;
 
       const labels = ["Strategies", "Best Test Return", "Best Train Return", "Best Trades", "Best Score"];
       const values = [
-        [fmt.num(data.totalStrategies), ""],
+        [fmt.num(data.totalStrategies), "muted-val"],
         [fmt.pct(best.test.returnPct), classFor(best.test.returnPct)],
         [fmt.pct(best.train.returnPct), classFor(best.train.returnPct)],
-        [fmt.num(best.test.trades), ""],
-        [fmt.dec(best.score, 5), ""],
+        [fmt.num(best.test.trades), "muted-val"],
+        [fmt.dec(best.score, 5), "muted-val"],
       ];
       els.summary.innerHTML = labels.map((label, i) =>
-        metricCard(label, values[i][0], values[i][1], metricIcons[i])
+        metricCard(label, values[i][0], values[i][1])
       ).join("");
 
       const rows = data.top.map((s) => `
@@ -399,8 +650,12 @@
           <td>${s.test.trades}</td>
           <td>
             <div class="export-actions">
-              <button class="action-btn doc-export" data-strategy-id="${s.id}" title="Download PDF">PDF</button>
-              <button class="action-btn code code-export" data-strategy-id="${s.id}" title="Download Python bot">Code</button>
+              <button class="action-btn doc-export" data-strategy-id="${s.id}" title="Download PDF · 2 credits">
+                PDF <span class="cost">2¢</span>
+              </button>
+              <button class="action-btn code code-export" data-strategy-id="${s.id}" title="Download Python bot · 4 credits">
+                Code <span class="cost">4¢</span>
+              </button>
             </div>
           </td>
         </tr>
@@ -414,10 +669,10 @@
                 <th>Rank</th>
                 <th>Strategy</th>
                 <th>Signals</th>
-                <th>Train Return</th>
+                <th class="group-train">Train Return</th>
                 <th>Train Sharpe</th>
                 <th>Train Trades</th>
-                <th>Test Return</th>
+                <th class="group-test">Test Return</th>
                 <th>Test Sharpe</th>
                 <th>Test Trades</th>
                 <th>Export</th>
@@ -445,7 +700,7 @@
       const initialSymbol = options.symbols.includes("ethusd") ? "ethusd" : options.symbols[0];
       setSelect(els.symbol, options.symbols, initialSymbol);
       updateTimeframes();
-      await loadReport();
+      await Promise.all([loadReport(), refreshCredits()]);
     }
 
     els.symbol.addEventListener("change", () => { updateTimeframes(); loadReport(); });
@@ -453,11 +708,28 @@
     els.dataset.addEventListener("change", loadReport);
     els.limit.addEventListener("change", loadReport);
 
-    els.report.addEventListener("click", (event) => {
+    els.report.addEventListener("click", async (event) => {
       const docBtn = event.target.closest(".doc-export");
       const codeBtn = event.target.closest(".code-export");
-      if (docBtn) window.location.href = exportUrl("doc", docBtn.dataset.strategyId);
-      if (codeBtn) window.location.href = exportUrl("code", codeBtn.dataset.strategyId);
+      if (!docBtn && !codeBtn) return;
+
+      const btn = docBtn || codeBtn;
+      const strategyId = btn.dataset.strategyId;
+      const isCode = Boolean(codeBtn);
+      const originalHTML = btn.innerHTML;
+
+      btn.disabled = true;
+      btn.textContent = "Working…";
+      try {
+        await downloadFile(
+          exportUrl(isCode ? "code" : "doc", strategyId),
+          isCode ? `main_${strategyId}.py` : `strategy_${strategyId}.pdf`,
+          isCode ? "Strategy code" : "PDF report"
+        );
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+      }
     });
 
     init().catch((error) => {

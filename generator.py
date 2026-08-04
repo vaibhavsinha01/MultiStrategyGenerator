@@ -22,12 +22,12 @@ from signals import SIGNALS, BULL_SIGNALS, BEAR_SIGNALS, NEUTRAL_SIGNALS
 
 VALID_SIGNALS = set(SIGNALS.keys())
 
-SIGNAL_COUNT_WEIGHTS = ((2, 0.14), (3, 0.54), (4, 0.24), (5,0.08))
-NEUTRAL_SLOT_PROBABILITY = 0.05
+SIGNAL_COUNT_WEIGHTS = ((2, 0.10), (3, 0.60), (4, 0.25), (5,0.05))
+NEUTRAL_SLOT_PROBABILITY = 0.04
 QUALITY_POOL_PROBABILITY = 0.80
 
-TP_RANGE = (0.006, 0.100)
-SL_RANGE = (0.004, 0.050)
+TP_RANGE = (0.008, 0.080)
+SL_RANGE = (0.004, 0.040)
 MIN_REWARD_RISK = 1.25
 
 QUALITY_BULL = [s for s in BULL_SIGNALS if s in VALID_SIGNALS]
@@ -61,7 +61,7 @@ def _neutral_candidates(selected: list[str], quality_only: bool) -> list[str]:
 def _pick_risk() -> tuple[float, float]:
     tp = round(random.uniform(*TP_RANGE), 10)
     sl = round(random.uniform(*SL_RANGE), 10)
-    return tp, sl
+    return round(tp,2), round(sl,2)
 
 
 def generate_one(direction: str | None = None, max_attempts: int = 200) -> dict | None:
