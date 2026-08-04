@@ -75,7 +75,7 @@ DATA_DIR      = ROOT / "data"
 RESULTS_DIR   = ROOT / "results"
 DASHBOARD_DIR = ROOT / "dashboard"
 IMAGES_DIR    = ROOT / "images"
-PORT          = 10000
+PORT          = 9500
 # HOST          = "0.0.0.0"
 HOST          = "127.0.0.1"
 
@@ -439,6 +439,7 @@ app = FastAPI(title="MultiStrategyGenerator Dashboard")
 
 if prometheus_app is not None:
     app.mount("/metrics", prometheus_app)
+    print("Prometheus:",prometheus_app)
 
 @app.middleware("http")
 async def prometheus_metrics(request: Request, call_next):

@@ -2,7 +2,11 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: multi-strategy-generator
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "multi-strategy-generator"
     metrics_path: /metrics
     static_configs:
-      - targets: ["host.docker.internal:10000"]
+      - targets: ["127.0.0.1:9500"]
