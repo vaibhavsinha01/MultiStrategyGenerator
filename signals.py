@@ -951,7 +951,7 @@ def s146(df: pd.DataFrame) -> pd.Series:
     """
     return (
         df["fvg_in_bull"].astype(bool) &
-        (~df["fvg_in_bull"].shift(1).fillna(False))
+        (~df["fvg_in_bull"].shift(1).fillna(False).astype(bool))
     )
 
 
@@ -976,7 +976,7 @@ def s149(df: pd.DataFrame) -> pd.Series:
     """
     return (
         df["ob_in_bull"].astype(bool) &
-        (~df["ob_in_bull"].shift(1).fillna(False))
+        (~df["ob_in_bull"].shift(1).fillna(False).astype(bool))
     )
 
 
@@ -1114,7 +1114,7 @@ def s166(df: pd.DataFrame) -> pd.Series:
     """
     return (
         df["fvg_in_bear"].astype(bool) &
-        (~df["fvg_in_bear"].shift(1).fillna(False))
+        (~df["fvg_in_bear"].shift(1).fillna(False).astype(bool))
     )
 
 
@@ -1139,7 +1139,7 @@ def s169(df: pd.DataFrame) -> pd.Series:
     """
     return (
         df["ob_in_bear"].astype(bool) &
-        (~df["ob_in_bear"].shift(1).fillna(False))
+        (~df["ob_in_bear"].shift(1).fillna(False).astype(bool))
     )
 
 

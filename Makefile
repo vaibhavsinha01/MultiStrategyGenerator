@@ -17,7 +17,10 @@ redis:
 	redis-server
 
 prometheus:
-	C:\Prometheus\prometheus.exe
+	C:\Prometheus\prometheus-3.13.2.windows-amd64\prometheus.exe --config.file=prometheus.yml
+
+grafana:
+	"C:\Program Files\GrafanaLabs\grafana\bin\grafana.exe"
 
 docker:
 	docker compose up --build

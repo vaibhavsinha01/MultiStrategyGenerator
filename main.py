@@ -2232,6 +2232,7 @@ def run(
     output_csv: str   = "strategy_results.csv",
     seed: int         = 42,
     append_results: bool = True,
+    allowed_signals: list[str] | set[str] | None = None,
 ):
     print(f"\n{'═'*60}")
     print("  STRATEGY FACTORY — Alpha Generator")
@@ -2271,7 +2272,10 @@ def run(
     print("\n[DEBUG] Validating signals...")
     broken = 0
     t_sv = time.time()
+    selected_signal_names = set(allowed_signals) if allowed_signals is not None else set(SIGNALS)
     for name, meta in SIGNALS.items():
+        if name not in selected_signal_names:
+            continue
         try:
             out = meta["fn"](df)
             if not isinstance(out, pd.Series):
@@ -2305,12 +2309,12 @@ def run(
     # ── 3. Generate strategies ─────────────────────────────────────────
     print(f"\n[3/6] Generating {n_strategies} strategies (seed={seed}) …")
     t0         = time.time()
-    strategies = generate_strategies(n=n_strategies, seed=seed)
+    strategies = generate_strategies(n=n_strategies, seed=seed, allowed_signals=allowed_signals)
     bench["generation"] = time.time() - t0
     print(f"      Generated: {len(strategies)}  ({bench['generation']:.1f}s)")
 
     # ── 4. Evaluate on TRAIN (NumPy prefilter in main → workers load train once) ─
-    keys = list(SIGNALS.keys())
+    keys = [key for key in SIGNALS if key in selected_signal_names]
     key_to_idx = {k: i for i, k in enumerate(keys)}
     t_sm = time.time()
     sig_mat = build_signal_bool_matrix(train_df, keys, SIGNALS)

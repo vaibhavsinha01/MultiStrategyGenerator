@@ -80,6 +80,10 @@
       background: var(--ink); color: #fff; border: 1px solid var(--ink);
     }
     .btn-primary:hover { background: #000; border-color: #000; }
+    .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .btn-sm { padding: 7px 12px; font-size: 12.5px; }
+    .btn-danger { color: var(--red); }
+    .btn-danger:hover { border-color: rgba(208,52,44,0.3); background: var(--red-soft); }
 
     .credits-chip {
       display: inline-flex; align-items: center; gap: 7px;
@@ -114,6 +118,16 @@
     }
     .cost-legend b { color: var(--ink); font-weight: 700; }
     .cost-legend .sep { color: var(--faint); }
+
+    /* ── section headers (reused for My Strategies) ─────────────────── */
+    .section-head {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      gap: 16px; margin: 44px 0 16px; flex-wrap: wrap;
+    }
+    .section-head h2 {
+      margin: 0 0 4px; font-size: 20px; letter-spacing: -0.015em; font-weight: 800;
+    }
+    .section-head p { margin: 0; color: var(--muted); font-size: 13.5px; }
 
     /* ── filters ─────────────────────────────────────────────────────── */
     .filters-card {
@@ -247,7 +261,15 @@
     .badge-neutral { background: rgba(14,20,32,0.06); color: var(--muted); }
     .badge-neutral::before { background: var(--faint); }
 
-    .export-actions { display: flex; gap: 6px; justify-content: flex-end; }
+    /* status badges for optimization jobs */
+    .badge-running { background: var(--amber-soft); color: var(--amber); }
+    .badge-running::before { background: var(--amber); }
+    .badge-completed { background: var(--green-soft); color: var(--green); }
+    .badge-completed::before { background: var(--green); }
+    .badge-failed { background: var(--red-soft); color: var(--red); }
+    .badge-failed::before { background: var(--red); }
+
+    .export-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
     .action-btn {
       display: inline-flex; align-items: center; gap: 5px;
       padding: 7px 11px; border-radius: var(--radius-sm);
@@ -264,7 +286,72 @@
     .action-btn.code { color: var(--blue-ink); }
     .action-btn.code:hover { border-color: var(--blue-line); background: var(--blue-soft); }
     .action-btn.code:hover .cost { color: var(--blue-ink); }
+    .action-btn.danger { color: var(--red); }
+    .action-btn.danger:hover { border-color: rgba(208,52,44,0.3); background: var(--red-soft); }
     .action-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── my strategies: expandable rows ─────────────────────────────── */
+    .my-row { cursor: default; }
+    .my-row .name-cell { display: flex; flex-direction: column; gap: 4px; }
+    .my-row .strategy-name { font-weight: 700; font-size: 13px; color: var(--ink); font-family: Inter, sans-serif; }
+    .expand-toggle {
+      display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+      border: none; background: none; padding: 0; font: inherit; color: var(--blue-ink);
+      font-weight: 700; font-size: 12px; font-family: Inter, sans-serif;
+    }
+    .expand-toggle .chevron {
+      width: 7px; height: 7px; border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor;
+      transform: rotate(45deg); transition: transform 0.15s ease; flex-shrink: 0;
+    }
+    .expand-toggle.open .chevron { transform: rotate(-135deg); }
+
+    .opt-panel-row td { padding: 0; border-bottom: 1px solid var(--line); }
+    .opt-panel {
+      display: none; padding: 18px 20px 22px; background: #FAFBFC;
+      font-family: Inter, sans-serif;
+    }
+    .opt-panel.open { display: block; }
+    .opt-panel-grid {
+      display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px;
+    }
+    .opt-mini-field label {
+      display: block; font-size: 10.5px; font-weight: 700; color: var(--faint);
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;
+    }
+    .opt-mini-field select {
+      min-height: 38px; padding: 8px 30px 8px 11px; border-radius: var(--radius-sm);
+      border: 1px solid var(--line-strong); background: #fff; font-size: 13px; font-weight: 600;
+      color: var(--ink); appearance: none; -webkit-appearance: none; cursor: pointer;
+      font-family: Inter, sans-serif;
+    }
+    .opt-status-line {
+      display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .opt-spinner {
+      width: 14px; height: 14px; border: 2px solid var(--blue-soft);
+      border-top-color: var(--blue); border-radius: 50%;
+      animation: spin 0.7s linear infinite; flex-shrink: 0;
+    }
+    .opt-results {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;
+    }
+    .opt-result-card {
+      background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm);
+      padding: 12px 14px;
+    }
+    .opt-result-card .label {
+      font-size: 10px; font-weight: 700; color: var(--faint); text-transform: uppercase;
+      letter-spacing: 0.05em; margin-bottom: 6px;
+    }
+    .opt-result-card .value {
+      font-family: var(--mono); font-weight: 800; font-size: 16px; letter-spacing: -0.01em;
+    }
+    .opt-error {
+      font-size: 12.5px; color: var(--red); background: var(--red-soft);
+      border: 1px solid rgba(208,52,44,0.2); border-radius: var(--radius-sm);
+      padding: 10px 13px;
+    }
 
     /* ── empty / loading ─────────────────────────────────────────────── */
     .empty {
@@ -336,6 +423,12 @@
     .modal-actions { display: flex; gap: 10px; }
     .modal-actions .btn { flex: 1; }
 
+    /* ── delete confirm modal (reuses modal-backdrop) ───────────────── */
+    .modal-actions .btn-danger-solid {
+      background: var(--red); color: #fff; border: 1px solid var(--red);
+    }
+    .modal-actions .btn-danger-solid:hover { background: #B32B24; border-color: #B32B24; }
+
     @media (max-width: 1024px) {
       .filters-grid { grid-template-columns: 1fr 1fr; }
       .metrics { grid-template-columns: 1fr 1fr 1fr; }
@@ -346,6 +439,7 @@
       .filters-grid, .metrics { grid-template-columns: 1fr 1fr; }
       .page-head h1 { font-size: 23px; }
       .nav-actions .btn span.btn-label { display: none; }
+      .opt-panel-grid { flex-direction: column; align-items: stretch; }
     }
   </style>
 </head>
@@ -364,6 +458,7 @@
         <a class="btn" href="/"><span class="btn-label">Home</span></a>
         <a class="btn" href="/services"><span class="btn-label">Services</span></a>
         <a class="btn" href="/document"><span class="btn-label">Docs</span></a>
+        <a class="btn" href="/strategies"><span class="btn-label">Generate</span></a>
         <a class="btn" href="/logout"><span class="btn-label">Logout</span></a>
       </div>
     </div>
@@ -414,9 +509,23 @@
       </div>
     </section>
 
+
+
     <section class="status fade-up delay-2" id="status"></section>
     <section class="metrics fade-up delay-2" id="summary"></section>
     <section class="table-card fade-up delay-3" id="report"></section>
+
+    <!-- ── My Strategies ─────────────────────────────────────────────── -->
+    <div class="section-head fade-up">
+      <div>
+        <h2>My Strategies</h2>
+        <p>Strategies you've generated or saved. Optimize them with walk-forward validation, or remove ones you no longer need.</p>
+      </div>
+      <div class="cost-legend">
+        <span id="myStrategiesCount"></span>
+      </div>
+    </div>
+    <section class="table-card fade-up" id="myStrategies"></section>
   </main>
 
   <!-- Insufficient credits modal -->
@@ -431,6 +540,19 @@
       </div>
       <div class="modal-actions">
         <button class="btn" id="creditsModalClose">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete confirm modal -->
+  <div class="modal-backdrop" id="deleteModalBackdrop">
+    <div class="modal-card">
+      <div class="modal-icon">×</div>
+      <h3>Delete this strategy?</h3>
+      <p id="deleteModalMessage">This can't be undone.</p>
+      <div class="modal-actions">
+        <button class="btn" id="deleteModalCancel">Cancel</button>
+        <button class="btn btn-danger-solid" id="deleteModalConfirm">Delete</button>
       </div>
     </div>
   </div>
@@ -454,6 +576,12 @@
       modalClose: document.querySelector("#creditsModalClose"),
       toast: document.querySelector("#toast"),
       toastText: document.querySelector("#toastText"),
+      myStrategies: document.querySelector("#myStrategies"),
+      myStrategiesCount: document.querySelector("#myStrategiesCount"),
+      deleteBackdrop: document.querySelector("#deleteModalBackdrop"),
+      deleteMessage: document.querySelector("#deleteModalMessage"),
+      deleteCancel: document.querySelector("#deleteModalCancel"),
+      deleteConfirm: document.querySelector("#deleteModalConfirm"),
     };
 
     let options = null;
@@ -477,6 +605,13 @@
       if (d === "bull") return `<span class="badge badge-bull">Bull</span>`;
       if (d === "bear") return `<span class="badge badge-bear">Bear</span>`;
       return `<span class="badge badge-neutral">${dir || "—"}</span>`;
+    }
+
+    function statusBadge(status) {
+      const s = (status || "").toLowerCase();
+      const label = s ? s.charAt(0).toUpperCase() + s.slice(1) : "—";
+      const cls = s === "running" ? "badge-running" : s === "completed" ? "badge-completed" : s === "failed" ? "badge-failed" : "badge-neutral";
+      return `<span class="badge ${cls}">${label}</span>`;
     }
 
     function setSelect(select, values, selected) {
@@ -534,7 +669,7 @@
     function closeCreditsModal() { els.modalBackdrop.classList.remove("open"); }
     els.modalClose.addEventListener("click", closeCreditsModal);
     els.modalBackdrop.addEventListener("click", (e) => { if (e.target === els.modalBackdrop) closeCreditsModal(); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeCreditsModal(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeCreditsModal(); closeDeleteModal(); } });
 
     function showToast(message) {
       els.toastText.textContent = message;
@@ -694,13 +829,380 @@
       return kind === "code" ? `/api/strategy-code?${params}` : `/api/document?${params}`;
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // My Strategies (saved strategies: list, optimize inline, delete)
+    // ══════════════════════════════════════════════════════════════════
+
+    // In-memory UI state, keyed by strategy id.
+    // expanded: bool, optimizationId: string|null, optimization: object|null,
+    // pollTimer: interval handle, symbol/timeframe: chosen optimize inputs.
+    const myState = new Map();
+    let pendingDeleteId = null;
+
+    function getState(id) {
+      if (!myState.has(id)) {
+        myState.set(id, {
+          expanded: false,
+          optimizationId: null,
+          optimization: null,
+          pollTimer: null,
+          symbol: (options && options.symbols[0]) || "ethusd",
+          timeframe: "15m",
+        });
+      }
+      return myState.get(id);
+    }
+
+    async function loadMyStrategies() {
+      els.myStrategies.innerHTML = `<div class="report-loading-overlay" style="position:static;padding:56px 0;"><div class="spinner"></div></div>`;
+      let data;
+      try {
+        const response = await fetch("/api/strategies");
+        data = await response.json();
+      } catch (error) {
+        els.myStrategies.innerHTML = `<div class="empty">Could not load your strategies. ${error.message || ""}</div>`;
+        return;
+      }
+
+      const strategies = data.strategies || [];
+      els.myStrategiesCount.textContent = strategies.length
+        ? `${strategies.length} saved`
+        : "";
+
+      if (!strategies.length) {
+        els.myStrategies.innerHTML = `
+          <div class="empty">
+            <div class="empty-icon">＋</div>
+            No saved strategies yet. Generate some from the <a href="/strategies" style="color:var(--blue-ink);font-weight:700;">Generate</a> page and they'll show up here.
+          </div>`;
+        return;
+      }
+
+      renderMyStrategies(strategies);
+    }
+
+    function renderMyStrategies(strategies) {
+      const rows = strategies.map((row) => {
+        const st = getState(row.id);
+        const strat = row.strategy || {};
+        const signalsText = Array.isArray(strat.signals) ? strat.signals.join(" | ") : (strat.signals || "");
+        return `
+          <tr class="my-row">
+            <td colspan="1">
+              <button class="expand-toggle ${st.expanded ? "open" : ""}" data-action="toggle" data-id="${row.id}">
+                <span class="chevron"></span>
+                <div class="name-cell">
+                  <span class="strategy-name">${row.name}</span>
+                  ${directionBadge(strat.direction)}
+                </div>
+              </button>
+            </td>
+            <td class="signals" style="text-align:left;">${signalsText}</td>
+            <td style="text-align:left;">${row.isPublic ? '<span class="badge badge-neutral">Public</span>' : (row.canEdit ? '<span class="badge badge-neutral">Private</span>' : '<span class="badge badge-neutral">Read-only</span>')}</td>
+            <td>${fmt.pct((strat.tp || 0) * 100)}</td>
+            <td>${fmt.pct((strat.sl || 0) * 100)}</td>
+            <td>${new Date(row.updatedAt).toLocaleDateString()}</td>
+            <td>
+              <div class="export-actions">
+                <button class="action-btn" data-action="pdf" data-id="${row.id}" title="Download saved-strategy PDF">
+                  PDF
+                </button>
+                <button class="action-btn code" data-action="code" data-id="${row.id}" title="Download Python bot">
+                  Code
+                </button>
+                <button class="action-btn" data-action="optimize" data-id="${row.id}" title="Run walk-forward optimization">
+                  Optimize
+                </button>
+                <button class="action-btn danger" data-action="delete" data-id="${row.id}" ${row.canEdit ? "" : "disabled title=\"Public strategies can't be deleted\""}>
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr class="opt-panel-row" data-panel-for="${row.id}">
+            <td colspan="7">
+              <div class="opt-panel ${st.expanded ? "open" : ""}" id="opt-panel-${row.id}">
+                ${renderOptPanel(row)}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      els.myStrategies.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left;">Name</th>
+                <th style="text-align:left;">Signals</th>
+                <th style="text-align:left;">Access</th>
+                <th>TP</th>
+                <th>SL</th>
+                <th>Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderOptPanel(row) {
+      const st = getState(row.id);
+      const symbolOptions = (options && options.symbols) || [];
+      const timeframeOptions = symbolOptions.length
+        ? (options.timeframesBySymbol[st.symbol] || []).filter((tf) => !["1m", "5m"].includes(tf.toLowerCase()))
+        : [];
+
+      let statusBlock = "";
+      if (st.optimizationId && st.optimization) {
+        const opt = st.optimization;
+        if (opt.status === "running") {
+          statusBlock = `
+            <div class="opt-status-line">
+              <span class="opt-spinner"></span>
+              Running walk-forward optimization… ${statusBadge(opt.status)}
+            </div>`;
+        } else if (opt.status === "completed") {
+          const result = opt.result || {};
+          const train = result.train || {};
+          const test = result.test || {};
+          statusBlock = `
+            <div class="opt-status-line">Optimization complete ${statusBadge(opt.status)}</div>
+            <div class="opt-results">
+              <div class="opt-result-card"><div class="label">Train Return</div><div class="value ${classFor(train.return_pct)}">${fmt.pct(train.return_pct)}</div></div>
+              <div class="opt-result-card"><div class="label">Train Sharpe</div><div class="value">${fmt.dec(train.sharpe)}</div></div>
+              <div class="opt-result-card"><div class="label">Test Return</div><div class="value ${classFor(test.return_pct)}">${fmt.pct(test.return_pct)}</div></div>
+              <div class="opt-result-card"><div class="label">Test Sharpe</div><div class="value">${fmt.dec(test.sharpe)}</div></div>
+              <div class="opt-result-card"><div class="label">Test Trades</div><div class="value muted-val">${fmt.num(test.trades)}</div></div>
+            </div>
+            <div style="margin-top:14px;">
+              <button class="action-btn code" data-action="opt-doc" data-id="${row.id}">Download optimization PDF</button>
+            </div>`;
+        } else if (opt.status === "failed") {
+          statusBlock = `
+            <div class="opt-status-line">Optimization failed ${statusBadge(opt.status)}</div>
+            <div class="opt-error">${opt.error || "Unknown error."}</div>`;
+        }
+      }
+
+      return `
+        <div class="opt-panel-grid">
+          <div class="opt-mini-field">
+            <label>Symbol</label>
+            <select data-role="opt-symbol" data-id="${row.id}">
+              ${symbolOptions.map((s) => `<option value="${s}" ${s === st.symbol ? "selected" : ""}>${s.toUpperCase()}</option>`).join("")}
+            </select>
+          </div>
+          <div class="opt-mini-field">
+            <label>Timeframe</label>
+            <select data-role="opt-timeframe" data-id="${row.id}">
+              ${timeframeOptions.map((t) => `<option value="${t}" ${t === st.timeframe ? "selected" : ""}>${t.toUpperCase()}</option>`).join("")}
+            </select>
+          </div>
+          <button class="btn btn-primary btn-sm" data-action="run-optimize" data-id="${row.id}" ${st.optimization && st.optimization.status === "running" ? "disabled" : ""}>
+            ${st.optimization && st.optimization.status === "running" ? "Optimizing…" : "Run optimization"}
+          </button>
+        </div>
+        ${statusBlock}
+      `;
+    }
+
+    function refreshPanel(id) {
+      const panel = document.getElementById(`opt-panel-${id}`);
+      if (!panel) return;
+      // Find the row data again from the DOM is awkward; instead re-render just the panel body
+      // by pulling name/signals back out is unnecessary — we only need row.id for renderOptPanel.
+      panel.innerHTML = renderOptPanel({ id });
+    }
+
+    function toggleRow(id) {
+      const st = getState(id);
+      st.expanded = !st.expanded;
+      const toggleBtn = document.querySelector(`.expand-toggle[data-id="${id}"]`);
+      const panel = document.getElementById(`opt-panel-${id}`);
+      if (toggleBtn) toggleBtn.classList.toggle("open", st.expanded);
+      if (panel) panel.classList.toggle("open", st.expanded);
+    }
+
+    async function runOptimize(id) {
+      const st = getState(id);
+      const body = { symbol: st.symbol, timeframe: st.timeframe };
+
+      const runBtn = document.querySelector(`[data-action="run-optimize"][data-id="${id}"]`);
+      if (runBtn) { runBtn.disabled = true; runBtn.textContent = "Starting…"; }
+
+      let response;
+      try {
+        response = await fetch(`/api/strategies/${id}/optimize`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      } catch (error) {
+        showToast("Network error starting optimization");
+        if (runBtn) { runBtn.disabled = false; runBtn.textContent = "Run optimization"; }
+        return;
+      }
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showToast(payload.error || "Could not start optimization");
+        if (runBtn) { runBtn.disabled = false; runBtn.textContent = "Run optimization"; }
+        return;
+      }
+
+      st.optimizationId = payload.id;
+      st.optimization = { status: "running" };
+      refreshPanel(id);
+      pollOptimization(id);
+    }
+
+    function pollOptimization(id) {
+      const st = getState(id);
+      if (st.pollTimer) clearInterval(st.pollTimer);
+
+      st.pollTimer = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/optimizations/${st.optimizationId}`);
+          const data = await response.json();
+          if (!response.ok) {
+            clearInterval(st.pollTimer);
+            st.optimization = { status: "failed", error: data.error || "Optimization not found" };
+            refreshPanel(id);
+            return;
+          }
+          st.optimization = data;
+          refreshPanel(id);
+          if (data.status !== "running") {
+            clearInterval(st.pollTimer);
+            st.pollTimer = null;
+            if (data.status === "completed") showToast("Optimization complete");
+            if (data.status === "failed") showToast("Optimization failed");
+          }
+        } catch (error) {
+          // transient network hiccup; keep polling
+        }
+      }, 2500);
+    }
+
+    function openDeleteModal(id, name) {
+      pendingDeleteId = id;
+      els.deleteMessage.textContent = `Delete "${name}"? This can't be undone.`;
+      els.deleteBackdrop.classList.add("open");
+    }
+    function closeDeleteModal() {
+      pendingDeleteId = null;
+      els.deleteBackdrop.classList.remove("open");
+    }
+    els.deleteCancel.addEventListener("click", closeDeleteModal);
+    els.deleteBackdrop.addEventListener("click", (e) => { if (e.target === els.deleteBackdrop) closeDeleteModal(); });
+    els.deleteConfirm.addEventListener("click", async () => {
+      if (!pendingDeleteId) return;
+      const id = pendingDeleteId;
+      els.deleteConfirm.disabled = true;
+      els.deleteConfirm.textContent = "Deleting…";
+      try {
+        const response = await fetch(`/api/strategies/${id}`, { method: "DELETE" });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          showToast(payload.error || "Could not delete strategy");
+        } else {
+          showToast("Strategy deleted");
+          myState.delete(id);
+          await loadMyStrategies();
+        }
+      } catch (error) {
+        showToast("Network error deleting strategy");
+      } finally {
+        els.deleteConfirm.disabled = false;
+        els.deleteConfirm.textContent = "Delete";
+        closeDeleteModal();
+      }
+    });
+
+    // Delegated click/change handlers for the My Strategies table.
+    els.myStrategies.addEventListener("click", async (event) => {
+      const toggleBtn = event.target.closest('[data-action="toggle"]');
+      const pdfBtn = event.target.closest('[data-action="pdf"]');
+      const codeBtn = event.target.closest('[data-action="code"]');
+      const optimizeBtn = event.target.closest('[data-action="optimize"]');
+      const deleteBtn = event.target.closest('[data-action="delete"]');
+      const runBtn = event.target.closest('[data-action="run-optimize"]');
+      const optDocBtn = event.target.closest('[data-action="opt-doc"]');
+
+      if (toggleBtn) {
+        toggleRow(toggleBtn.dataset.id);
+        return;
+      }
+      if (optimizeBtn) {
+        const id = optimizeBtn.dataset.id;
+        const st = getState(id);
+        if (!st.expanded) toggleRow(id); // open the panel; leave it open if already expanded
+        return;
+      }
+      if (pdfBtn) {
+        const id = pdfBtn.dataset.id;
+        pdfBtn.disabled = true;
+        await downloadFile(`/api/strategies/${id}/download?format=pdf`, `strategy_${id}.pdf`, "PDF report");
+        pdfBtn.disabled = false;
+        return;
+      }
+      if (codeBtn) {
+        const id = codeBtn.dataset.id;
+        codeBtn.disabled = true;
+        await downloadFile(`/api/strategies/${id}/download?format=code`, `strategy_${id}.py`, "Strategy code");
+        codeBtn.disabled = false;
+        return;
+      }
+      if (deleteBtn) {
+        const row = deleteBtn.closest("tr");
+        const name = row?.querySelector(".strategy-name")?.textContent || "this strategy";
+        openDeleteModal(deleteBtn.dataset.id, name);
+        return;
+      }
+      if (runBtn) {
+        runOptimize(runBtn.dataset.id);
+        return;
+      }
+      if (optDocBtn) {
+        const id = optDocBtn.dataset.id;
+        const st = getState(id);
+        if (!st.optimizationId) return;
+        optDocBtn.disabled = true;
+        await downloadFile(`/api/optimizations/${st.optimizationId}/document`, `optimization_${st.optimizationId}.pdf`, "Optimization PDF");
+        optDocBtn.disabled = false;
+        return;
+      }
+    });
+
+    els.myStrategies.addEventListener("change", (event) => {
+      const symbolSelect = event.target.closest('[data-role="opt-symbol"]');
+      const timeframeSelect = event.target.closest('[data-role="opt-timeframe"]');
+      if (symbolSelect) {
+        const st = getState(symbolSelect.dataset.id);
+        st.symbol = symbolSelect.value;
+        const timeframes = (options.timeframesBySymbol[st.symbol] || []).filter((tf) => !["1m", "5m"].includes(tf.toLowerCase()));
+        st.timeframe = timeframes.includes("15m") ? "15m" : timeframes[0];
+        refreshPanel(symbolSelect.dataset.id);
+      }
+      if (timeframeSelect) {
+        const st = getState(timeframeSelect.dataset.id);
+        st.timeframe = timeframeSelect.value;
+      }
+    });
+
+    // ══════════════════════════════════════════════════════════════════
+
     async function init() {
       const response = await fetch("/api/options");
       options = await response.json();
       const initialSymbol = options.symbols.includes("ethusd") ? "ethusd" : options.symbols[0];
       setSelect(els.symbol, options.symbols, initialSymbol);
       updateTimeframes();
-      await Promise.all([loadReport(), refreshCredits()]);
+      await Promise.all([loadReport(), refreshCredits(), loadMyStrategies()]);
     }
 
     els.symbol.addEventListener("change", () => { updateTimeframes(); loadReport(); });

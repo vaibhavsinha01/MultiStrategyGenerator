@@ -20,6 +20,6 @@ COPY . .
 
 RUN mkdir -p logs results data 
 
-EXPOSE 8000 
+EXPOSE 10000
 
-CMD ["python", "web_dashboard.py"]
+CMD ["uvicorn", "web_dashboard:app", "--host", "0.0.0.0", "--port", "10000"]

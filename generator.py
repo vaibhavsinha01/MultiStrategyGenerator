@@ -40,10 +40,11 @@ def _pick_signal_count() -> int:
     return random.choices(counts, weights=weights)[0]
 
 
-def _pick_pool(direction: str, quality_only: bool) -> list[str]:
-    if quality_only:
-        return QUALITY_BULL if direction == "bull" else QUALITY_BEAR
-    return BULL_SIGNALS if direction == "bull" else BEAR_SIGNALS
+def _pick_pool(direction: str, quality_only: bool, allowed_signals: set[str] | None = None) -> list[str]:
+    pool = (QUALITY_BULL if direction == "bull" else QUALITY_BEAR) if quality_only else (
+        BULL_SIGNALS if direction == "bull" else BEAR_SIGNALS
+    )
+    return [signal for signal in pool if allowed_signals is None or signal in allowed_signals]
 
 
 def _valid_combo(selected: list[str]) -> bool:
@@ -52,19 +53,21 @@ def _valid_combo(selected: list[str]) -> bool:
     return len(groups) == len(set(groups))
 
 
-def _neutral_candidates(selected: list[str], quality_only: bool) -> list[str]:
+def _neutral_candidates(selected: list[str], quality_only: bool, allowed_signals: set[str] | None = None) -> list[str]:
     used_groups = {SIGNALS[s]["group"] for s in selected}
     pool = QUALITY_NEUTRAL if quality_only else NEUTRAL_SIGNALS
-    return [s for s in pool if SIGNALS[s]["group"] not in used_groups]
+    return [s for s in pool if SIGNALS[s]["group"] not in used_groups and (allowed_signals is None or s in allowed_signals)]
 
 
 def _pick_risk() -> tuple[float, float]:
-    tp = round(random.uniform(*TP_RANGE), 10)
-    sl = round(random.uniform(*SL_RANGE), 10)
-    return round(tp,2), round(sl,2)
+    # Keep enough precision for sub-1% stops; rounding to two decimals could
+    # produce 0.00 and make the reward/risk validation divide by zero.
+    tp = round(random.uniform(*TP_RANGE), 4)
+    sl = round(random.uniform(*SL_RANGE), 4)
+    return tp, sl
 
 
-def generate_one(direction: str | None = None, max_attempts: int = 200) -> dict | None:
+def generate_one(direction: str | None = None, max_attempts: int = 200, allowed_signals: set[str] | None = None) -> dict | None:
     """Generate one valid strategy dict, or None if no valid combo is found."""
     if direction is None:
         direction = random.choice(["bull", "bear"])
@@ -73,7 +76,7 @@ def generate_one(direction: str | None = None, max_attempts: int = 200) -> dict 
 
     for _ in range(max_attempts):
         use_quality = random.random() < QUALITY_POOL_PROBABILITY
-        pool = _pick_pool(direction, use_quality)
+        pool = _pick_pool(direction, use_quality, allowed_signals)
 
         wants_neutral = n_signals > 2 and random.random() < NEUTRAL_SLOT_PROBABILITY
         n_directional = n_signals - 1 if wants_neutral else n_signals
@@ -86,7 +89,7 @@ def generate_one(direction: str | None = None, max_attempts: int = 200) -> dict 
             continue
 
         if wants_neutral:
-            neutral_pool = _neutral_candidates(selected, use_quality)
+            neutral_pool = _neutral_candidates(selected, use_quality, allowed_signals)
             if not neutral_pool:
                 continue
             selected.append(random.choice(neutral_pool))
@@ -114,8 +117,14 @@ def generate_strategies(
     n: int = 750,
     bull_ratio: float = 0.5,
     seed: int | None = 42,
+    allowed_signals: list[str] | set[str] | None = None,
 ) -> list[dict]:
     """Generate n unique valid strategies."""
+    allowed = set(allowed_signals) if allowed_signals is not None else None
+    if allowed is not None:
+        unknown = allowed - VALID_SIGNALS
+        if unknown:
+            raise ValueError(f"Unknown signals: {', '.join(sorted(unknown))}")
     if seed is not None:
         random.seed(seed)
 
@@ -132,7 +141,7 @@ def generate_strategies(
 
         while generated < count and attempts < max_total_attempts:
             attempts += 1
-            strat = generate_one(direction)
+            strat = generate_one(direction, allowed_signals=allowed)
             if strat is None:
                 continue
 

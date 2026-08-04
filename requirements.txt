@@ -22,3 +22,6 @@ reportlab
 python-dotenv
 bcrypt==4.0.1
 backtesting
+redis>=5.0
+prometheus-client>=0.20
+sambo>=1.24

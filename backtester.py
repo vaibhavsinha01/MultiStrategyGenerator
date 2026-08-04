@@ -78,20 +78,20 @@ def _build_strategy_class(strat_dict: dict) -> type:
         if direction == "bull":
             if not self.position.is_long:
                 self.buy(
-                    sl=price * (1 - sl_pct),
-                    tp=price * (1 + tp_pct),
+                    sl=price * (1 - self.sl_pct),
+                    tp=price * (1 + self.tp_pct),
                 )
         else:
             if not self.position.is_short:
                 self.sell(
-                    sl=price * (1 + sl_pct),
-                    tp=price * (1 - tp_pct),
+                    sl=price * (1 + self.sl_pct),
+                    tp=price * (1 - self.tp_pct),
                 )
 
     return type(
         f"Strat_{strat_dict['id']}",
         (Strategy,),
-        {"init": init, "next": next},
+        {"init": init, "next": next, "tp_pct": tp_pct, "sl_pct": sl_pct},
     )
 
 

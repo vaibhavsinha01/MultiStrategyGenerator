@@ -28,8 +28,8 @@ def main() -> None:
     parser.add_argument("--timeframes", default=",".join(DEFAULT_TIMEFRAMES))
     parser.add_argument("--data-dir", default="data")
     parser.add_argument("--out", default=r"results\strategy_results_unified.csv")
-    parser.add_argument("--n", type=int, default=25000, help="Strategies to generate per run")
-    parser.add_argument("--top", type=int, default=2000, help="Top N to validate per run")
+    parser.add_argument("--n", type=int, default=50000, help="Strategies to generate per run")
+    parser.add_argument("--top", type=int, default=3000, help="Top N to validate per run")
     parser.add_argument("--workers", type=int, default=13)
     parser.add_argument("--seed", type=int, default=719)
     parser.add_argument(

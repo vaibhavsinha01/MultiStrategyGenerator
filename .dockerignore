@@ -23,6 +23,3 @@ results/
 *.pdf
 
 signals.csv
-
-Dockerfile
-docker-compose.yml

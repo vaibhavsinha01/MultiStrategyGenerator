@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import time
 import traceback
+import hashlib
 from io import BytesIO
 
 # ── Gemini SDK ────────────────────────────────────────────────────────────────
@@ -42,6 +43,8 @@ from reportlab.platypus import (
 
 # ── Project ───────────────────────────────────────────────────────────────────
 from signals import SIGNALS
+from cache import cache
+from metrics import CACHE, LLM_LATENCY, LLM_REQUESTS
 
 # ── Config ────────────────────────────────────────────────────────────────────
 try:
@@ -215,6 +218,12 @@ def _call_gemini(prompt: str, max_output_tokens: int = 2400) -> str:
             "  GEMINI_API_KEY = 'your-key-here'"
         )
 
+    cache_key = "llm:" + hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+    cached = cache.get_bytes(cache_key)
+    if cached:
+        CACHE.labels("hit", "llm").inc()
+        return cached.decode("utf-8")
+    CACHE.labels("miss", "llm").inc()
     client = google_genai.Client(api_key=GEMINI_API_KEY)
 
     last_exc: Exception | None = None
@@ -222,6 +231,8 @@ def _call_gemini(prompt: str, max_output_tokens: int = 2400) -> str:
         try:
             print(f"[LLM] Calling Gemini {GEMINI_MODEL} (attempt {attempt}/{MAX_RETRIES}) …")
 
+            LLM_REQUESTS.inc()
+            started = time.perf_counter()
             response = client.models.generate_content(
                 model=GEMINI_MODEL,
                 contents=prompt,
@@ -233,10 +244,12 @@ def _call_gemini(prompt: str, max_output_tokens: int = 2400) -> str:
             )
 
             text = response.text.strip()
+            LLM_LATENCY.observe(time.perf_counter() - started)
             if not text:
                 raise RuntimeError("Gemini returned an empty response.")
 
             print(f"[LLM] Response received ({len(text)} chars).")
+            cache.set_bytes(cache_key, text.encode("utf-8"), 86400)
             return text
 
         except Exception as exc:
