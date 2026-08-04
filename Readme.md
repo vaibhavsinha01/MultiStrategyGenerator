@@ -1,60 +1,201 @@
 # MultiStrategyGenerator
 
-MultiStrategyGenerator creates, evaluates, documents, and exports algorithmic trading strategies. The FastAPI dashboard is authenticated and supports both generated CSV report strategies and saved user strategies.
+MultiStrategyGenerator creates, evaluates, documents, and exports algorithmic trading strategies. The FastAPI dashboard is authenticated and supports both generated strategies and saved user strategies.
 
-## Run locally
+---
 
-1. Create a virtual environment and install dependencies: `pip install -r requirements.txt`.
-2. Copy `.env.example` to `.env` and set `DATABASE_URL`, `SECRET_KEY`, OAuth/payment credentials, and any market-data credentials required by your workflow.
-3. Start PostgreSQL, then run `python web_dashboard.py` (or `uvicorn web_dashboard:app --host 127.0.0.1 --port 10000`).
-4. Sign in at `http://127.0.0.1:10000/app`.
+## 1. Setup
 
-The first application start creates the database tables. Keep secrets out of source control; `.env.example` contains placeholders only.
+```bash
+python -m venv venv
+source venv/bin/activate      # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-## Saved and public strategies
+Copy the environment file and fill in credentials:
 
-Authenticated users can create, list, update, delete, and download only strategies they own. Developer-created public strategies are visible and downloadable to every authenticated user but are read-only. `GET /api/signals` returns the registry from `signals.py`; its `defaultSelected` list contains every available signal, so clients can remove or add IDs without copying signal definitions.
+```bash
+cp .env.example .env
+```
 
-Saved-strategy API:
+Set in `.env`:
 
-- `GET /api/signals` — signal metadata and default selection.
-- `GET` / `POST /api/strategies` — list/create strategies.
-- `PUT` / `DELETE /api/strategies/{id}` — owner-only update/delete.
-- `GET /api/strategies/{id}/download?format=code|pdf` — permitted user/public download.
+```env
+DATABASE_URL=postgresql://username:password@localhost:5432/multi_strategy_generator
+SECRET_KEY=your-secret-key
+# + OAuth / payment credentials
+# + market-data credentials
+```
 
-The dashboard includes a saved-strategy panel with create, download, delete, and optimize actions. Integrations can use the APIs to provide a richer signal-picker UI.
+Keep secrets out of source control — `.env.example` only contains placeholders.
 
-## Strategy Factory and signal selection
+---
 
-Open `/strategies` from the dashboard to run the full existing generation pipeline for 50, 100, or 500 candidates. The page lists every signal from `signals.py` in a checkbox grid; all are checked initially. Unchecking signals removes them from the generator pool, signal validation, NumPy prefilter, train backtest, regime-aware validation, and evaluator run. For example, selecting only EMA, MACD, SMC, and Range Filter signals means every generated candidate is composed solely from that selection.
+## 2. Run
 
-The generator retains its current 2/3/4/5 signal-count weights and compatibility/contradiction-group checks, so it never creates a 174-indicator strategy. Start a job through `POST /api/strategy-generation` with `count` (50, 100, or 500), `signals`, `symbol`, and `timeframe`; poll `GET /api/strategy-generation/{id}`. Evaluated results are saved to the requesting user's **My strategies** list.
+Start PostgreSQL, then run the app:
 
-## Manual walk-forward optimization
+```bash
+python web_dashboard.py
+```
 
-Start a job with `POST /api/strategies/{id}/optimize` and JSON such as `{"symbol":"ethusd","timeframe":"15m"}`. It uses Backtesting.py SAMBO optimization (`method="sambo"`) on a 70/30 walk-forward split and optimizes TP/SL. Only one job runs at once; a concurrent request returns HTTP 409. Poll `GET /api/optimizations/{id}` for `running`, `completed`, or `failed` plus the train/test report, then download the report through `GET /api/optimizations/{id}/document`. Optimization is manual and never runs as part of generation.
+or
 
-## Redis cache
+```bash
+uvicorn web_dashboard:app --host 127.0.0.1 --port 10000
+```
 
-Redis is optional. Start it in WSL with `/usr/bin/redis-server` and set `REDIS_URL=redis://localhost:6379/0`. The app pings Redis during startup and silently falls back to normal generation if unavailable. It caches strategy reports (60 seconds), generated PDFs (24 hours), and Gemini LLM narratives (24 hours). Report/PDF/LLM cache hits and misses are included in Prometheus metrics.
+The first start creates the database tables automatically.
 
-## Prometheus and Grafana
+| Service   | URL                                                        |
+| --------- | ----------------------------------------------------------- |
+| App       | http://127.0.0.1:10000                                      |
+| Dashboard | http://127.0.0.1:10000/app                                  |
+| Swagger   | http://127.0.0.1:10000/docs                                 |
+| Metrics   | http://127.0.0.1:10000/metrics                              |
 
-The dashboard exposes Prometheus-format metrics at `http://127.0.0.1:10000/metrics`: request totals/latency, strategies generated, optimization statuses, Redis cache hits/misses, and LLM requests/latency. Run Prometheus with:
+Sign in at `http://127.0.0.1:10000/app`.
 
-`C:\Prometheus\prometheus-3.13.2.windows-amd64\prometheus.exe --config.file=prometheus.yml`
+---
 
-`prometheus.yml` scrapes the local application through `host.docker.internal:10000`; change the target to `127.0.0.1:10000` if both processes run directly on Windows. Start Grafana with `C:\Program Files\GrafanaLabs\grafana\bin\grafana.exe`, add Prometheus (`http://localhost:9090`) as a data source, and graph the `msg_*` metrics.
+## 3. Saved & Public Strategies
 
-## Docker and CI
+Authenticated users can create, list, update, delete, and download only strategies they own. Developer-created public strategies are visible/downloadable to every user but are read-only.
 
-`docker build -t multi-strategy-generator .` builds the dashboard image, which exposes port 10000 and starts Uvicorn. `.dockerignore` excludes data, results, local logs, secrets, notebooks, and generated PDFs while retaining build files. GitHub Actions installs the project and checks that all Python files compile.
+| Endpoint | Description |
+|---|---|
+| `GET /api/signals` | Signal metadata + default selection (from `signals.py`) |
+| `GET /api/strategies` | List strategies |
+| `POST /api/strategies` | Create strategy |
+| `PUT /api/strategies/{id}` | Update (owner-only) |
+| `DELETE /api/strategies/{id}` | Delete (owner-only) |
+| `GET /api/strategies/{id}/download?format=code\|pdf` | Download (permitted user/public) |
 
-## Testing
+`GET /api/signals` returns `defaultSelected` containing every available signal ID — clients add/remove IDs without redefining signals.
 
-- Run `python -m compileall -q .` for a fast syntax check.
-- Sign in as two users; create a strategy as user A, then verify user B cannot update/delete it but can read/download a developer public strategy.
-- Call `/api/signals`, remove signal IDs from `defaultSelected`, create with the resulting list, and retrieve it to verify the exact selection persists.
-- Start one optimization and immediately start another; expect 202 then 409. Poll its status until complete.
-- Stop Redis and request a report/PDF: it should still succeed. Start Redis and repeat requests, then inspect `msg_redis_cache_total` at `/metrics`.
-- Start Prometheus and Grafana, issue dashboard/API traffic, and confirm the `msg_http_requests_total` and latency series appear.
+---
+
+## 4. Strategy Generation
+
+Open `/strategies` in the dashboard to run the generation pipeline for **50, 100, or 500** candidates.
+
+- All signals from `signals.py` are checked by default in a checkbox grid.
+- Unchecking a signal removes it from: the generator pool, signal validation, NumPy prefilter, train backtest, regime-aware validation, and evaluator.
+- Example: selecting only EMA, MACD, SMC, and Range Filter restricts every generated candidate to that set.
+- The generator keeps its 2/3/4/5 signal-count weighting and compatibility/contradiction-group checks (no oversized/contradictory strategies).
+
+**API:**
+
+```bash
+POST /api/strategy-generation
+{ "count": 100, "signals": [...], "symbol": "ethusd", "timeframe": "15m" }
+```
+
+Poll:
+
+```bash
+GET /api/strategy-generation/{id}
+```
+
+Evaluated results are saved to the requesting user's **My strategies** list.
+
+---
+
+## 5. Manual Walk-Forward Optimization
+
+```bash
+POST /api/strategies/{id}/optimize
+{ "symbol": "ethusd", "timeframe": "15m" }
+```
+
+- Uses Backtesting.py SAMBO optimization (`method="sambo"`) on a 70/30 walk-forward split, optimizing TP/SL.
+- Only one optimization job runs at a time — a concurrent request returns **HTTP 409**.
+
+Poll:
+
+```bash
+GET /api/optimizations/{id}
+```
+
+Returns `running`, `completed`, or `failed` plus the train/test report.
+
+Download the report:
+
+```bash
+GET /api/optimizations/{id}/document
+```
+
+Optimization is manual only — it never runs automatically as part of generation.
+
+---
+
+## 6. Redis Cache (Optional)
+
+```bash
+/usr/bin/redis-server        # WSL
+redis-cli ping                # → PONG
+```
+
+```env
+REDIS_URL=redis://localhost:6379/0
+```
+
+The app pings Redis on startup and silently falls back to normal execution if it's unavailable.
+
+Caches:
+
+| Item | TTL |
+|---|---|
+| Strategy reports | 60 seconds |
+| Generated PDFs | 24 hours |
+| Gemini LLM narratives | 24 hours |
+
+Cache hits/misses are exported in Prometheus metrics.
+
+---
+
+## 7. Prometheus & Grafana
+
+Metrics are exposed at `http://127.0.0.1:10000/metrics` (request totals/latency, strategies generated, optimization statuses, Redis hits/misses, LLM requests/latency).
+
+**Prometheus:**
+
+```cmd
+C:\Prometheus\prometheus-3.13.2.windows-amd64\prometheus.exe --config.file=prometheus.yml
+```
+
+`prometheus.yml` scrapes via `host.docker.internal:10000` by default — change the target to `127.0.0.1:10000` if both processes run directly on Windows (not in Docker).
+
+Open: `http://localhost:9090` (targets: `http://localhost:9090/targets`)
+
+**Grafana:**
+
+```cmd
+C:\Program Files\GrafanaLabs\grafana\bin\grafana.exe
+```
+
+Open `http://localhost:3000` → add Prometheus (`http://localhost:9090`) as a data source → graph `msg_*` metrics.
+
+---
+
+## 8. Docker
+
+```bash
+docker build -t multi-strategy-generator .
+```
+
+Exposes port `10000`, starts Uvicorn. `.dockerignore` excludes data, results, local logs, secrets, notebooks, and generated PDFs while keeping build files.
+
+---
+
+## Startup Order
+
+```
+PostgreSQL → Redis (optional) → venv → App → Prometheus → Grafana
+```
+
+## Shutdown Order
+
+```
+Grafana → Prometheus → App → Redis → PostgreSQL
+```
