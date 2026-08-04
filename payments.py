@@ -51,7 +51,7 @@ def create_checkout_order(user_id: int) -> dict[str, Any]:
         "purchase_units": [
             {
                 "reference_id": f"user-{user_id}",
-                "description": "Simurgh Capital Pro — strategy exports & premium dashboard",
+                "description": "Simurgh Trading Pro — strategy exports & premium dashboard",
                 "amount": {
                     "currency_code": PRO_PLAN_CURRENCY,
                     "value": PRO_PLAN_PRICE,
@@ -59,7 +59,7 @@ def create_checkout_order(user_id: int) -> dict[str, Any]:
             }
         ],
         "application_context": {
-            "brand_name": "Simurgh Capital",
+            "brand_name": "Simurgh Trading",
             "landing_page": "NO_PREFERENCE",
             "user_action": "PAY_NOW",
             "return_url": f"{APP_BASE_URL.rstrip('/')}/payment/success",
