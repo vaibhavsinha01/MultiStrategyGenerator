@@ -1,0 +1,43 @@
+name: MultiStrategyGenerator CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start Web Dashboard
+        run: |
+          python web_dashboard.py &
+          sleep 10
+
+      - name: Verify Server Started
+        run: |
+          curl --fail http://127.0.0.1:8031 || exit 1
+
+      - name: Stop Server
+        run: |
+          pkill -f web_dashboard.py || true
